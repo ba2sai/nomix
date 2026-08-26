@@ -1,0 +1,20 @@
+{
+  "name": "@nomix/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SPA de Nomix (React + Vite). Dashboard RRHH + portal del colaborador.",
+  "scripts": {
+    "dev": "echo 'TODO: vite (pendiente de andamiaje React)' && exit 0",
+    "build": "echo 'TODO: vite build' && exit 0",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@nomix/payroll-engine": "workspace:*",
+    "@nomix/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,24 @@
+# Nomix — reverse proxy y TLS automático (ADR-012)
+# En producción, reemplazar :80 por el dominio real para que Caddy
+# emita el certificado TLS automáticamente.
+
+:80 {
+	# API y SSE
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA (estáticos servidos por el contenedor web)
+	handle {
+		reverse_proxy web:80
+	}
+
+	# Cabeceras de seguridad (cierra FIND-002 de la ingeniería inversa)
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

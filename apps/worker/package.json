@@ -1,0 +1,22 @@
+{
+  "name": "@nomix/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Workers BullMQ: PDF, ACH, SIPE, correo. Consume el motor, no lo reimplementa.",
+  "scripts": {
+    "dev": "echo 'TODO: worker (pendiente de andamiaje BullMQ)' && exit 0",
+    "build": "echo 'TODO: build worker' && exit 0",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@nomix/payroll-engine": "workspace:*",
+    "@nomix/rules": "workspace:*",
+    "@nomix/contracts": "workspace:*",
+    "@nomix/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

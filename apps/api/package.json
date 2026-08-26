@@ -1,0 +1,22 @@
+{
+  "name": "@nomix/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API de Nomix (NestJS). REST + SSE. Única autoridad de cálculo.",
+  "scripts": {
+    "dev": "echo 'TODO: nest start --watch (pendiente de andamiaje NestJS)' && exit 0",
+    "build": "echo 'TODO: nest build' && exit 0",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@nomix/payroll-engine": "workspace:*",
+    "@nomix/rules": "workspace:*",
+    "@nomix/contracts": "workspace:*",
+    "@nomix/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

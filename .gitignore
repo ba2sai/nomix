@@ -1,3 +1,21 @@
 .env
+.env.*
+!.env.example
 *.log
 .DS_Store
+
+# Node / monorepo
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Docker volumes locales
+docker/volumes/
+
+# PII real de cuenta piloto - no commitear sin anonimizar
+reportes PFacil/
+
+# Config local de Claude Code (permisos por máquina)
+.claude/settings.local.json

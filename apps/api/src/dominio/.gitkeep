@@ -1,0 +1,4 @@
+# src/dominio/ — código de dominio de la API.
+# La regla de lint anti-decimal (ADR-010) cubre esta ruta: aquí tampoco se
+# escriben literales decimales; los montos pasan por Money y las tasas vienen
+# de @nomix/rules.

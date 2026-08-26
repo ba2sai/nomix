@@ -1,0 +1,5 @@
+# src/ach/exporters/ — un adaptador por banco (patrón Strategy).
+# Bloqueado por GAP-001 hasta tener un archivo ACH de ejemplo por banco.
+# La interfaz AchExporter se define en @nomix/contracts; aquí van las
+# implementaciones: bac.ts, banistmo.ts, banco-general.ts, global-bank.ts,
+# multibank.ts, banesco.ts, credicorp.ts, caja-ahorros.ts

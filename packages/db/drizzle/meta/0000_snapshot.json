@@ -1,0 +1,503 @@
+{
+  "id": "d1447494-ca51-4501-a630-ff6a88608c8b",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.concepto": {
+      "name": "concepto",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "jurisdiccion_id": {
+          "name": "jurisdiccion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PA'"
+        },
+        "empresa_id": {
+          "name": "empresa_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incide_css": {
+          "name": "incide_css",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tasa_css_especial": {
+          "name": "tasa_css_especial",
+          "type": "numeric(8, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "incide_seguro_educativo": {
+          "name": "incide_seguro_educativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incide_isr": {
+          "name": "incide_isr",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "regimen_isr": {
+          "name": "regimen_isr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incide_base_xiii": {
+          "name": "incide_base_xiii",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incide_promedio_vacaciones": {
+          "name": "incide_promedio_vacaciones",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "incide_base_liquidacion": {
+          "name": "incide_base_liquidacion",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "es_inembargable": {
+          "name": "es_inembargable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_desde": {
+          "name": "vigente_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_hasta": {
+          "name": "vigente_hasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "concepto_empresa_id_empresa_id_fk": {
+          "name": "concepto_empresa_id_empresa_id_fk",
+          "tableFrom": "concepto",
+          "tableTo": "empresa",
+          "columnsFrom": [
+            "empresa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.empresa": {
+      "name": "empresa",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre_comercial": {
+          "name": "nombre_comercial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "razon_social": {
+          "name": "razon_social",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ruc": {
+          "name": "ruc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dv": {
+          "name": "dv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_patronal": {
+          "name": "numero_patronal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actividad_ciiu": {
+          "name": "actividad_ciiu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "region_salario_minimo": {
+          "name": "region_salario_minimo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tamano_empresa": {
+          "name": "tamano_empresa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cantidad_trabajadores": {
+          "name": "cantidad_trabajadores",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tasa_riesgo_profesional": {
+          "name": "tasa_riesgo_profesional",
+          "type": "numeric(6, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paga_aguinaldo_acostumbrado": {
+          "name": "paga_aguinaldo_acostumbrado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "jurisdiccion_id": {
+          "name": "jurisdiccion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PA'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.evento_saliente": {
+      "name": "evento_saliente",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "empresa_id": {
+          "name": "empresa_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocurrido_en": {
+          "name": "ocurrido_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "publicado_en": {
+          "name": "publicado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.regla": {
+      "name": "regla",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "jurisdiccion_id": {
+          "name": "jurisdiccion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PA'"
+        },
+        "empresa_id": {
+          "name": "empresa_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor": {
+          "name": "valor",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_desde": {
+          "name": "vigente_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_hasta": {
+          "name": "vigente_hasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conocido_desde": {
+          "name": "conocido_desde",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "base_legal": {
+          "name": "base_legal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianza": {
+          "name": "confianza",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "regla_empresa_id_empresa_id_fk": {
+          "name": "regla_empresa_id_empresa_id_fk",
+          "tableFrom": "regla",
+          "tableTo": "empresa",
+          "columnsFrom": [
+            "empresa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.usuario": {
+      "name": "usuario",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuario_email_unique": {
+          "name": "usuario_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      }
+    },
+    "public.usuario_empresa": {
+      "name": "usuario_empresa",
+      "schema": "",
+      "columns": {
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "empresa_id": {
+          "name": "empresa_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rol": {
+          "name": "rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_desde": {
+          "name": "vigente_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_hasta": {
+          "name": "vigente_hasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "usuario_empresa_usuario_id_usuario_id_fk": {
+          "name": "usuario_empresa_usuario_id_usuario_id_fk",
+          "tableFrom": "usuario_empresa",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "usuario_empresa_empresa_id_empresa_id_fk": {
+          "name": "usuario_empresa_empresa_id_empresa_id_fk",
+          "tableFrom": "usuario_empresa",
+          "tableTo": "empresa",
+          "columnsFrom": [
+            "empresa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "usuario_empresa_usuario_id_empresa_id_vigente_desde_pk": {
+          "name": "usuario_empresa_usuario_id_empresa_id_vigente_desde_pk",
+          "columns": [
+            "usuario_id",
+            "empresa_id",
+            "vigente_desde"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
