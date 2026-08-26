@@ -42,8 +42,26 @@ async function main(): Promise<void> {
       (${USUARIO}, ${EMPRESA_B}, 'contador_auditor', current_date, null)
     on conflict do nothing`);
 
+  // Tarifa de Riesgos Profesionales por empresa (Empresa A: oficina 1.05%)
+  await db.execute(sql`update empresa set tasa_riesgo_profesional = 0.0105 where id = ${EMPRESA_A}`);
+
+  // Reglas de tasas, versionadas por fecha de vigencia (ADR-001). Globales del
+  // país (empresa_id null). Sembradas desde 06_base_legal_panama.md §13.
+  await db.execute(sql`delete from regla where empresa_id is null and codigo in
+    ('css_obrero','css_patronal','seguro_educativo_obrero','seguro_educativo_patronal')`);
+  const tasa = (t: string) => sql`${JSON.stringify({ tasa: t })}::jsonb`;
+  await db.execute(sql`
+    insert into regla (jurisdiccion_id, empresa_id, codigo, valor, vigente_desde, vigente_hasta, base_legal, confianza) values
+      ('PA', null, 'css_obrero',                ${tasa('0.0975')}, '2013-01-01', null,         'Ley 51 de 2005',  'verificado'),
+      ('PA', null, 'seguro_educativo_obrero',   ${tasa('0.0125')}, '1987-01-01', null,         'Ley 13 de 1987',  'verificado'),
+      ('PA', null, 'seguro_educativo_patronal', ${tasa('0.0150')}, '1987-01-01', null,         'Ley 13 de 1987',  'verificado'),
+      ('PA', null, 'css_patronal',              ${tasa('0.1225')}, '2013-01-01', '2025-03-31', 'Ley 51 de 2005',  'verificado'),
+      ('PA', null, 'css_patronal',              ${tasa('0.1325')}, '2025-04-01', '2027-02-28', 'Ley 462 de 2025', 'verificado'),
+      ('PA', null, 'css_patronal',              ${tasa('0.1425')}, '2027-03-01', '2029-02-28', 'Ley 462 de 2025', 'verificado'),
+      ('PA', null, 'css_patronal',              ${tasa('0.1525')}, '2029-03-01', null,         'Ley 462 de 2025', 'verificado')`);
+
   // eslint-disable-next-line no-console
-  console.log('✓ Seed: demo@nomix.pa / Demo1234 con membresía en Empresa A y B');
+  console.log('✓ Seed: demo@nomix.pa / Demo1234, empresas A/B, reglas de tasas CSS/SE');
   await client.end();
 }
 
