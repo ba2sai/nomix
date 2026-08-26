@@ -61,9 +61,9 @@ Esta entidad representa el perfil completo de un trabajador en la legislación p
 | Campo | Tipo | Opciones | Regla de Negocio |
 |---|---|---|---|
 | `declara_renta` | Select | `Si`, `No` | Indica si está sujeto a retención de Impuesto Sobre la Renta |
-| `grupo_renta` | Select | `A`, `B`, `C` | Tabla de retención DGI según dependientes |
-| `dependientes` | Integer | 0 a 10 | Deducción de $250 anuales por dependiente para cálculo de ISR |
-| `conyugue_renta` | Select | `Si`, `No` | Deducción de $800 anuales por cónyuge no perceptor |
+| `grupo_renta` | Select | `A`, `B`, `C` | Tabla de retención DGI según dependientes 🔴 |
+| `dependientes` | Integer | 0 a 10 | Deducción de $250 anuales por dependiente para cálculo de ISR 🔴 |
+| `conyugue_renta` | Select | `Si`, `No` | Deducción de $800 anuales por cónyuge no perceptor 🔴 |
 | `omitir_imp` | Select | `No`, `Si`, `Impuestos en Salario Base` | Exenciones especiales de ley |
 | `omitir_rec_domingo`| Select | `No`, `Si` | Exención de recargo de domingo en turnos rotativos |
 | `pago_dec` | Select | `Si`, `No` | Sujeto al cálculo y cobro de XIII Mes |
@@ -71,6 +71,24 @@ Esta entidad representa el perfil completo de un trabajador en la legislación p
 | `id_banco` | Select / Foreign Key | Bancos de la plaza panameña (BAC, BG, Banistmo, etc.) | Banco destino para ACH |
 | `tipo_cta_banco` | Select | `Ahorro`, `Corriente` | Tipo de cuenta bancaria del empleado |
 | `cuenta_bancaria` | Text / Varchar | Número de cuenta | Número para generación de archivo ACH |
+
+> 🔴 **Correcciones verificadas** (ver [`nomix/06_base_legal_panama.md`](nomix/06_base_legal_panama.md) §4.2):
+>
+> - **`dependientes`** — la regla de negocio anotada aquí (*"$250 anuales por dependiente"*) es `INFERRED`, no `OBSERVED`. El instructivo oficial de la DGI enumera las deducciones personales de forma exhaustiva y **no contempla ninguna deducción por dependiente**. El campo existe en PlaniFácil, pero su efecto real está **sin confirmar**.
+> - **`conyugue_renta`** — los $800 son la **deducción básica de cónyuges que presentan declaración conjunta**, no una deducción "por cónyuge no perceptor". Además es una figura de la **declaración anual**; queda por confirmar si el empleador puede aplicarla en la retención quincenal.
+> - **`grupo_renta`** — no se encontró en la normativa vigente ninguna tabla de retención A/B/C según dependientes. Puede ser vestigio de un régimen derogado.
+>
+> Estos tres puntos están elevados como consultas **A3** y **A4** en [`nomix/07_consultas_profesional_planilla.md`](nomix/07_consultas_profesional_planilla.md).
+
+### 1.5 Campos faltantes detectados por la investigación legal
+
+Campos que la normativa exige y que **no existen** en el modelo relevado de PlaniFácil:
+
+| Campo | Por qué se necesita | Base legal |
+|---|---|---|
+| `es_tecnico` | El preaviso de renuncia del trabajador técnico es de **2 meses**, no 15 días | Art. 222 CT |
+| `fecha_ingreso_regimen_art225` | Determina qué régimen de indemnización aplica (pre-1972 / intermedio / Ley 44 de 1995) | Art. 225 CT |
+| `tipo_incapacidad` | Enfermedad común, riesgo profesional y maternidad tienen regímenes de pago distintos | Ley Orgánica CSS |
 
 ---
 
@@ -96,6 +114,15 @@ Gestiona las deducciones aplicables a un trabajador (préstamos bancarios, muebl
 ## 3. Entidad: Parámetros de Empresa (`ENT-003`)
 
 Configuraciones globales que rigen los cálculos y automatizaciones de la empresa activa.
+
+> 🔴 **Campos faltantes a nivel de empresa** detectados por la investigación legal:
+>
+> | Campo | Por qué se necesita |
+> |---|---|
+> | `actividad_ciiu` | Determina la tarifa de Riesgos Profesionales (0.56%–6.25%) **y** la tasa de salario mínimo aplicable |
+> | `region_salario_minimo` | El salario mínimo se diferencia en 2 regiones (D.E. 13 de 2025) |
+> | `tamano_empresa` | Afecta el salario mínimo y las excepciones del Art. 212 |
+> | `cantidad_trabajadores` | Las excepciones del Art. 212 dependen del número de trabajadores (≤10 agrícolas, ≤15 manufactureras, ≤20 agroindustriales, ≤5 venta al por menor) |
 
 | Campo | Tipo | Valores Observados | Impacto en el Cálculo |
 |---|---|---|---|

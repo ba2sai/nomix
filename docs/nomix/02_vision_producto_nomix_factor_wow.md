@@ -78,7 +78,13 @@ graph TD
 
 ### 📊 6. Simulador Financiero de Contratación y Escenarios de Salida
 - **El WOW:** Herramienta visual e interactiva para Gerentes Generales, CFOs y Directores de RRHH.
-- **Escenario 1 (Contratación):** *"Si quiero contratar a un Ingeniero con salario neto de $2,000, ¿cuál es el costo real total mensual para la empresa contando cargas patronales (CSS 12.25%, SE 1.50%, RP 1.50%, Reserva XIII Mes 8.33%, Reserva Vacaciones 9.09%)?"* -> El sistema da el costo empresarial exacto en segundos ($2,642.50/mes).
+- **Escenario 1 (Contratación):** *"Si quiero contratar a un Ingeniero con salario neto de $2,000, ¿cuál es el costo real total mensual para la empresa contando cargas patronales (CSS **13.25%** 🔴, SE 1.50%, RP según CIIU, Reserva XIII Mes 8.33%, Reserva Vacaciones 9.09%, Prima de Antigüedad 1.92%, Cuota de Cesantía 5%)?"* -> El sistema da el costo empresarial exacto en segundos.
+
+> 🔴 **Cifras actualizadas.** La cuota patronal de CSS es **13.25%** (Ley 462 de 2025), no 12.25%. La tasa de Riesgos Profesionales **no es fija en 1.50%**: va de 0.56% a 6.25% según la actividad CIIU de la empresa. Y faltaban dos componentes de costo real: la provisión de **prima de antigüedad (1.92%)** y la **cuota de indemnización del Fondo de Cesantía (5%)**.
+>
+> El monto ilustrativo de $2,642.50 se retiró por estar calculado con las tasas anteriores. Ver [`06_base_legal_panama.md`](06_base_legal_panama.md) §1 y §8.
+>
+> **Nota de producto:** que el simulador acierte el costo patronal real —con la tasa de RP correcta de *esa* empresa y las provisiones completas— es precisamente lo que lo hace vendible a un CFO. Con tasas genéricas es una calculadora más.
 - **Escenario 2 (Liquidación Comparativa):** Compara el costo de terminación por Mutuo Consentimiento vs. Despido con Preaviso en un gráfico visual interactivo.
 
 ---

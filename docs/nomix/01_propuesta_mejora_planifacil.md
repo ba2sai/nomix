@@ -101,7 +101,11 @@ graph LR
 ## 3. Pillar 3: Lógica de Negocio y Reglas Panamá
 
 ### 3.1 Hallazgos de Lógica Actual (`WF-001` a `WF-004`)
-- Los cálculos de Seguro Social (9.75% / 12.25%), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
+- Los cálculos de Seguro Social (9.75% / **13.25%** 🔴), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
+
+> 🔴 **La cuota patronal de CSS es 13.25%**, no 12.25%, desde abril de 2025 (Ley 462 de 18 de marzo de 2025). Escalona a 14.25% en marzo 2027 y a 15.25% en marzo 2029.
+>
+> Esos tres cambios ya programados son la justificación definitiva de que **ninguna tasa puede ser una constante en el código**: deben resolverse por fecha de vigencia del período que se calcula. Ver [`08_decisiones_arquitectura.md`](08_decisiones_arquitectura.md) `ADR-001`.
 
 ### 3.2 Estrategia de Modernización de Lógica
 
@@ -138,6 +142,29 @@ graph TD
   - **Día de Fiesta / Duelo Nacional (+150%)**
   - **Horas Excedentes en Día de Fiesta (+150% + 50%)**
 - Permitir configuraciones personalizadas por empresa para recargos superiores a los de ley (Convenios Colectivos).
+
+> ### 🔴 Corrección verificada (Art. 33, 48 y 49 CT)
+>
+> Ver [`06_base_legal_panama.md`](06_base_legal_panama.md) §5.
+>
+> **1. El recargo no depende del tipo de jornada del trabajador, sino de qué jornada se prolonga.** Presentarlo como *"Mixta (+50% o +75%)"* es incorrecto: la indecisión no es de la norma, es de qué se está prolongando.
+>
+> | Situación | Recargo |
+> |---|---|
+> | Hora extra en jornada **diurna** | **+25%** |
+> | Hora extra en jornada **nocturna**, o prolongación de **mixta iniciada de día** | **+50%** |
+> | Hora extra que **prolonga la jornada nocturna**, o **mixta iniciada de noche** | **+75%** |
+>
+> El motor debe evaluar el **momento de inicio de la jornada**, no leer una etiqueta de la ficha del colaborador.
+>
+> **2. Falta el recargo de domingo / día de descanso semanal: +50%** (Art. 48).
+>
+> **3. La regla *"+150% + 50%"* es incorrecta.** El Art. 49 establece que *"el recargo del 150 por ciento **incluye** la remuneración del día de descanso"*. No se paga el día ordinario más un 150% adicional. El +50% adicional aplica únicamente cuando el trabajador labora en el **día compensatorio** que se le otorgó.
+>
+> **4. Rangos horarios** (faltaban por completo, y sin ellos no se puede clasificar una hora extra):
+> diurna 6:00–18:00 (8h/48sem) · nocturna 18:00–6:00 (7h/42sem) · mixta máx. 3h nocturnas (7.5h/45sem).
+>
+> **5. Límite legal:** 3 horas diarias / 9 horas semanales (Art. 36).
 
 ---
 

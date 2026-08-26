@@ -65,7 +65,9 @@ graph TD
 ## 4. Hoja de Ruta de Módulos Reconstruibles
 
 1. **Módulo Core de Parámetros y Tablas Maestras:**
-   - Tasas de CSS (Obrero: 9.75%, Patronal: 12.25%), SE (Obrero: 1.25%, Patronal: 1.50%), Tablas de Retención DGI (15% sobre >$11k, 25% sobre >$50k).
+   - Tasas de CSS (Obrero: 9.75%, Patronal: ~~12.25%~~ → **13.25%** 🔴), SE (Obrero: 1.25%, Patronal: 1.50%), Tablas de Retención DGI (15% sobre >$11k, 25% sobre >$50k).
+
+   > 🔴 La cuota patronal es **13.25%** desde abril 2025 (Ley 462 de 2025), con aumentos programados a 14.25% (mar-2027) y 15.25% (mar-2029). Fuente normativa: [`nomix/06_base_legal_panama.md`](nomix/06_base_legal_panama.md) §1.
    - Catálogo de Bancos, Sucursales, Gerencias, Departamentos y Cargos.
 2. **Módulo de Ficha de Colaborador:**
    - Modelo con validación de Cédula/RUC con Dígito Verificador, cuenta bancaria para ACH, régimen salarial y descuentos comerciales/judiciales.
