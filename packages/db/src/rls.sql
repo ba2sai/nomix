@@ -14,6 +14,7 @@ ALTER TABLE usuario_empresa   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE regla             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE concepto          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evento_saliente   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE colaborador       ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION app_current_empresa() RETURNS uuid
   LANGUAGE sql STABLE AS $$
@@ -43,6 +44,13 @@ CREATE POLICY concepto_aislado ON concepto
 DROP POLICY IF EXISTS evento_aislado ON evento_saliente;
 CREATE POLICY evento_aislado ON evento_saliente
   USING (empresa_id = app_current_empresa());
+
+-- colaboradores: solo los de la empresa activa. WITH CHECK explícito para que
+-- un INSERT/UPDATE no pueda asignar el registro a otra empresa.
+DROP POLICY IF EXISTS colaborador_aislado ON colaborador;
+CREATE POLICY colaborador_aislado ON colaborador
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
 
 -- membresías: un usuario ve las SUYAS (para el login, antes de elegir empresa),
 -- y dentro de una empresa activa se ven las de esa empresa. Cubre ambos flujos.

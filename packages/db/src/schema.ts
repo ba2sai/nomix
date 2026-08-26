@@ -21,6 +21,7 @@ import {
   numeric,
   jsonb,
   primaryKey,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 /** Monto monetario: numeric(18,6) devuelto como string (ADR-006). */
@@ -107,6 +108,46 @@ export const concepto = pgTable('concepto', {
   vigenteDesde: date('vigente_desde').notNull(),
   vigenteHasta: date('vigente_hasta'),
 });
+
+/**
+ * Colaborador (ENT-001). Entidad central de RRHH. Primer subconjunto de campos;
+ * los ~40 restantes se agregan por pasos del wizard sin rediseñar.
+ *
+ * PII (ADR-007): la identificación se guarda CIFRADA (`id_cifrado`, AES-256-GCM)
+ * más un índice ciego (`id_bidx`, HMAC) para unicidad y búsqueda sin descifrar.
+ * `salario_mensual` NO se cifra (rompería reportes agregados); se protege con
+ * RLS + permisos + auditoría.
+ */
+export const colaborador = pgTable(
+  'colaborador',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    empresaId: uuid('empresa_id')
+      .notNull()
+      .references(() => empresa.id),
+    codEmpleado: text('cod_empleado').notNull(),
+    nombres: text('nombres').notNull(),
+    apellidos: text('apellidos').notNull(),
+    tipoDocumento: text('tipo_documento').notNull(), // cedula | pasaporte
+    idCifrado: text('id_cifrado').notNull(), // identificación cifrada (AES-256-GCM)
+    idBidx: text('id_bidx').notNull(), // índice ciego (HMAC) para unicidad/búsqueda
+    sexo: text('sexo'),
+    fechaNacimiento: date('fecha_nacimiento'),
+    tipoContrato: text('tipo_contrato').notNull(), // indefinido | definido | obra | servicios
+    tipoPlanilla: text('tipo_planilla').notNull(),
+    fechaIngreso: date('fecha_ingreso').notNull(),
+    fechaTermino: date('fecha_termino'),
+    esTecnico: boolean('es_tecnico').notNull().default(false), // preaviso 2 meses (Art. 222)
+    salarioMensual: numeric('salario_mensual', { precision: 18, scale: 6 }).notNull(),
+    status: text('status').notNull().default('activo'), // activo | vacaciones | licencia | suspendido | cesante
+    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+    actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uxCod: uniqueIndex('ux_colaborador_empresa_cod').on(t.empresaId, t.codEmpleado),
+    uxId: uniqueIndex('ux_colaborador_empresa_idbidx').on(t.empresaId, t.idBidx),
+  }),
+);
 
 /** Cola de eventos de dominio (patrón outbox, ADR-013 — enganche futuro de n8n). */
 export const eventoSaliente = pgTable('evento_saliente', {

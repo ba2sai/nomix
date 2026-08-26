@@ -12,6 +12,8 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(8),
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(28800),
+  // Clave maestra de cifrado de PII (ADR-007). 32 bytes en base64 (44 chars).
+  FIELD_ENCRYPTION_KEY: z.string().min(44),
 });
 
 export type Env = z.infer<typeof envSchema>;
