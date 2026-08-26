@@ -240,6 +240,10 @@ explícitamente antes de cualquier despliegue.
 7. **`jurisdiccion_id` en toda tabla de reglas.**
 8. Idioma del dominio: **español de Panamá** — planilla, colaborador, quincena,
    décimo tercer mes, liquidación, prima de antigüedad.
+9. **Inyección de dependencias siempre explícita con `@Inject(TOKEN)`.** No se
+   depende de `emitDecoratorMetadata`/`design:paramtypes` reflejada, para que la
+   DI funcione igual bajo cualquier compilador. El dev de la API usa el path
+   compilado (`tsc -w` + `node --watch`), con paridad con producción.
 
 ---
 

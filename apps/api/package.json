@@ -5,14 +5,16 @@
   "type": "module",
   "description": "API de Nomix (NestJS + Fastify). REST + SSE. Única autoridad de cálculo.",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsc -w -p tsconfig.json & node --watch dist/main.js",
     "start": "node dist/main.js",
+    "seed": "node dist/seed.js",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@fastify/cookie": "^9.4.0",
     "@nestjs/common": "^10.4.0",
     "@nestjs/core": "^10.4.0",
     "@nestjs/platform-fastify": "^10.4.0",
