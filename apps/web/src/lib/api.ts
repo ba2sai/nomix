@@ -86,6 +86,32 @@ export interface Preview {
   pendiente: { isr: string };
 }
 
+export interface Planilla {
+  id: string;
+  tipo: string;
+  periodoDesde: string;
+  periodoHasta: string;
+  fechaPago: string | null;
+  estado: string;
+  totales: {
+    colaboradores?: number;
+    bruto?: string;
+    deduccionesObrero?: string;
+    cargasPatronales?: string;
+    netoAntesIsr?: string;
+    costoEmpleador?: string;
+  } | null;
+}
+export interface PlanillaLinea {
+  concepto: string;
+  tipo: string;
+  base: string | null;
+  monto: string;
+}
+export interface PlanillaDetalle extends Planilla {
+  colaboradores: { colaboradorId: string; nombre: string; lineas: PlanillaLinea[] }[];
+}
+
 export const api = {
   me: () => req<Me>('GET', '/auth/me'),
   login: (email: string, password: string) =>
@@ -98,4 +124,16 @@ export const api = {
     req<Colaborador>('POST', '/colaboradores', dto),
   previewEmpresa: (fecha: string) =>
     req<Preview>('GET', `/planillas/preview-empresa?fecha=${fecha}`),
+  // Planillas persistidas
+  planillas: () => req<Planilla[]>('GET', '/planillas'),
+  planilla: (id: string) => req<PlanillaDetalle>('GET', `/planillas/${id}`),
+  crearPlanilla: (dto: {
+    tipo: string;
+    periodoDesde: string;
+    periodoHasta: string;
+    fechaPago?: string;
+  }) => req<Planilla>('POST', '/planillas', dto),
+  calcularPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/calcular`),
+  aprobarPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/aprobar`),
+  cerrarPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/cerrar`),
 };

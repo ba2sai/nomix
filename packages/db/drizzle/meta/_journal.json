@@ -22,6 +22,13 @@
       "when": 1787782813962,
       "tag": "0002_kind_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787786437200,
+      "tag": "0003_pretty_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

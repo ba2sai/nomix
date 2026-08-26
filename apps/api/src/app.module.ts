@@ -6,6 +6,7 @@ import { HealthController } from './health/health.controller.js';
 import { EmpresaController } from './empresa/empresa.controller.js';
 import { PlanillaController } from './planilla/planilla.controller.js';
 import { PlanillaService } from './planilla/planilla.service.js';
+import { ProcesoService } from './planilla/proceso.service.js';
 import { ColaboradorController } from './colaborador/colaborador.controller.js';
 import { ColaboradorService } from './colaborador/colaborador.service.js';
 
@@ -17,6 +18,6 @@ import { ColaboradorService } from './colaborador/colaborador.service.js';
     PlanillaController,
     ColaboradorController,
   ],
-  providers: [PlanillaService, ColaboradorService],
+  providers: [PlanillaService, ProcesoService, ColaboradorService],
 })
 export class AppModule {}

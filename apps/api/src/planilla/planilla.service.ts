@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { schema } from '@nomix/db';
-import { Money, Rate, calcularSeguridadSocial, type LineaCalculada } from '@nomix/payroll-engine';
+import { Money, calcularSeguridadSocial, type LineaCalculada } from '@nomix/payroll-engine';
 import { DB } from '../db/db.module.js';
 import type { DbHandle } from '../db/client.js';
-import { withContext, type TenantTx } from '../db/tenant.js';
-import { resolverTasa } from '../rules/rule-resolver.js';
+import { withContext } from '../db/tenant.js';
+import { resolverTasasSS, type TasasResueltas } from './tasas.js';
 
 export interface ColaboradorInput {
   nombre: string;
@@ -21,14 +21,6 @@ export interface PreviewInput {
   colaboradores: ColaboradorInput[];
 }
 
-interface TasasResueltas {
-  cssObrero: Rate;
-  cssPatronal: Rate;
-  seObrero: Rate;
-  sePatronal: Rate;
-  riesgosProfesionales: Rate;
-}
-
 function serializarLinea(l: LineaCalculada): Record<string, string> {
   return {
     concepto: l.concepto,
@@ -42,24 +34,6 @@ function serializarLinea(l: LineaCalculada): Record<string, string> {
 @Injectable()
 export class PlanillaService {
   constructor(@Inject(DB) private readonly handle: DbHandle) {}
-
-  /** Resuelve las tasas vigentes en la fecha + la tarifa RP de la empresa activa. */
-  private async resolverTasas(tx: TenantTx, fecha: string): Promise<TasasResueltas> {
-    const [cssO, cssP, seO, seP] = await Promise.all([
-      resolverTasa(tx, 'css_obrero', fecha),
-      resolverTasa(tx, 'css_patronal', fecha),
-      resolverTasa(tx, 'seguro_educativo_obrero', fecha),
-      resolverTasa(tx, 'seguro_educativo_patronal', fecha),
-    ]);
-    const [emp] = await tx.select().from(schema.empresa);
-    return {
-      cssObrero: Rate.of(cssO),
-      cssPatronal: Rate.of(cssP),
-      seObrero: Rate.of(seO),
-      sePatronal: Rate.of(seP),
-      riesgosProfesionales: Rate.of(emp?.tasaRiesgoProfesional ?? '0'),
-    };
-  }
 
   private lineaColaborador(nombre: string, base: Money, tasas: TasasResueltas) {
     const r = calcularSeguridadSocial(base, tasas);
@@ -121,7 +95,7 @@ export class PlanillaService {
       this.handle.db,
       { usuarioId: input.usuarioId, empresaId: input.empresaId },
       async (tx) => {
-        const tasas = await this.resolverTasas(tx, input.fecha);
+        const tasas = await resolverTasasSS(tx, input.fecha);
         const filas = input.colaboradores.map((c) =>
           this.lineaColaborador(
             c.nombre,
@@ -141,7 +115,7 @@ export class PlanillaService {
    */
   async previewEmpresa(usuarioId: string, empresaId: string, fecha: string): Promise<unknown> {
     return withContext(this.handle.db, { usuarioId, empresaId }, async (tx) => {
-      const tasas = await this.resolverTasas(tx, fecha);
+      const tasas = await resolverTasasSS(tx, fecha);
       const colabs = await tx
         .select({
           nombres: schema.colaborador.nombres,

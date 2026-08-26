@@ -6,7 +6,7 @@ import { Login } from './pages/Login';
 import { SeleccionarEmpresa } from './pages/SeleccionarEmpresa';
 import { Colaboradores } from './pages/Colaboradores';
 import { ColaboradorWizard } from './pages/ColaboradorWizard';
-import { PlanillaPreview } from './pages/PlanillaPreview';
+import { Planillas } from './pages/Planillas';
 
 function Protegido({ children }: { children: ReactNode }) {
   const { cargando, me } = useAuth();
@@ -28,7 +28,7 @@ export function App() {
         <Route path="/seleccionar-empresa" element={<RutaSeleccion />} />
         <Route path="/colaboradores" element={<Protegido><Colaboradores /></Protegido>} />
         <Route path="/colaboradores/nuevo" element={<Protegido><ColaboradorWizard /></Protegido>} />
-        <Route path="/planilla" element={<Protegido><PlanillaPreview /></Protegido>} />
+        <Route path="/planilla" element={<Protegido><Planillas /></Protegido>} />
         <Route path="*" element={<Navigate to="/colaboradores" replace />} />
       </Routes>
     </BrowserRouter>

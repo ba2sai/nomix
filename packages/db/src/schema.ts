@@ -164,6 +164,61 @@ export const colaborador = pgTable(
   }),
 );
 
+/**
+ * Planilla — cabecera con su máquina de estados (Factor WOW #1, "Zero-Recalculate").
+ * Estados: borrador → calculada → aprobada → cerrada. Se puede recalcular mientras
+ * no esté aprobada. Al cerrar queda inmutable y emite un evento (ADR-013).
+ */
+export const planillaCabecera = pgTable('planilla_cabecera', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id')
+    .notNull()
+    .references(() => empresa.id),
+  tipo: text('tipo').notNull(), // quincenal | bisemanal | ...
+  periodoDesde: date('periodo_desde').notNull(),
+  periodoHasta: date('periodo_hasta').notNull(),
+  fechaPago: date('fecha_pago'),
+  estado: text('estado').notNull().default('borrador'),
+  totales: jsonb('totales'),
+  calculadaEn: timestamp('calculada_en', { withTimezone: true }),
+  aprobadaEn: timestamp('aprobada_en', { withTimezone: true }),
+  aprobadaPor: uuid('aprobada_por'),
+  cerradaEn: timestamp('cerrada_en', { withTimezone: true }),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Líneas de la planilla: un concepto por colaborador. */
+export const planillaDetalle = pgTable('planilla_detalle', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(), // para RLS directo
+  planillaId: uuid('planilla_id')
+    .notNull()
+    .references(() => planillaCabecera.id, { onDelete: 'cascade' }),
+  colaboradorId: uuid('colaborador_id')
+    .notNull()
+    .references(() => colaborador.id),
+  conceptoCodigo: text('concepto_codigo').notNull(),
+  tipo: text('tipo').notNull(), // ingreso | deduccion | aporte_patronal
+  cantidad: numeric('cantidad', { precision: 18, scale: 6 }),
+  base: numeric('base', { precision: 18, scale: 6 }),
+  monto: numeric('monto', { precision: 18, scale: 6 }).notNull(),
+});
+
+/** Trazabilidad: qué regla produjo cada línea calculada (ADR-005). */
+export const planillaTraza = pgTable('planilla_traza', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(), // para RLS directo
+  detalleId: uuid('detalle_id')
+    .notNull()
+    .references(() => planillaDetalle.id, { onDelete: 'cascade' }),
+  reglaCodigo: text('regla_codigo').notNull(),
+  baseAplicada: numeric('base_aplicada', { precision: 18, scale: 6 }),
+  tasaAplicada: text('tasa_aplicada'),
+  resultado: numeric('resultado', { precision: 18, scale: 6 }),
+  articuloLegal: text('articulo_legal'),
+  calculadoEn: timestamp('calculado_en', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Cola de eventos de dominio (patrón outbox, ADR-013 — enganche futuro de n8n). */
 export const eventoSaliente = pgTable('evento_saliente', {
   id: uuid('id').primaryKey().defaultRandom(),

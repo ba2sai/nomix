@@ -15,6 +15,9 @@ ALTER TABLE regla             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE concepto          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evento_saliente   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE colaborador       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planilla_cabecera ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planilla_detalle  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planilla_traza    ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION app_current_empresa() RETURNS uuid
   LANGUAGE sql STABLE AS $$
@@ -49,6 +52,20 @@ CREATE POLICY evento_aislado ON evento_saliente
 -- un INSERT/UPDATE no pueda asignar el registro a otra empresa.
 DROP POLICY IF EXISTS colaborador_aislado ON colaborador;
 CREATE POLICY colaborador_aislado ON colaborador
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+
+-- planilla y sus líneas: aislamiento directo por empresa activa.
+DROP POLICY IF EXISTS planilla_cabecera_aislada ON planilla_cabecera;
+CREATE POLICY planilla_cabecera_aislada ON planilla_cabecera
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+DROP POLICY IF EXISTS planilla_detalle_aislado ON planilla_detalle;
+CREATE POLICY planilla_detalle_aislado ON planilla_detalle
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+DROP POLICY IF EXISTS planilla_traza_aislada ON planilla_traza;
+CREATE POLICY planilla_traza_aislada ON planilla_traza
   USING (empresa_id = app_current_empresa())
   WITH CHECK (empresa_id = app_current_empresa());
 
