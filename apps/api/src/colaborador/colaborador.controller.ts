@@ -18,6 +18,7 @@ import { ColaboradorService } from './colaborador.service.js';
 const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'fecha debe ser YYYY-MM-DD');
 
 const crearSchema = z.object({
+  // Paso 1 — Datos personales
   codEmpleado: z.string().min(1),
   nombres: z.string().min(1),
   apellidos: z.string().min(1),
@@ -25,12 +26,26 @@ const crearSchema = z.object({
   identificacion: z.string().min(1),
   sexo: z.enum(['M', 'F']).optional(),
   fechaNacimiento: fecha.optional(),
+  estadoCivil: z.enum(['soltero', 'casado', 'unido', 'viudo', 'divorciado']).optional(),
+  telefono: z.string().optional(),
+  correo: z.string().email().optional(),
+  // Paso 2 — Contrato y cargo
+  cargo: z.string().optional(),
   tipoContrato: z.enum(['indefinido', 'definido', 'obra', 'servicios']),
   tipoPlanilla: z.string().min(1),
   fechaIngreso: fecha,
   fechaTermino: fecha.optional(),
+  pProbatorio: z.boolean().optional(),
   esTecnico: z.boolean().optional(),
+  // Paso 3 — Salario y banco
   salarioMensual: montoStr,
+  formaPago: z.enum(['cheque', 'ach', 'efectivo']).optional(),
+  idBanco: z.string().optional(),
+  tipoCuenta: z.enum(['ahorro', 'corriente']).optional(),
+  cuentaBancaria: z.string().optional(),
+  // Paso 5 — Retenciones
+  declaraRenta: z.boolean().optional(),
+  gastoRep: montoStr.optional(),
 });
 
 const actualizarSchema = crearSchema.partial();

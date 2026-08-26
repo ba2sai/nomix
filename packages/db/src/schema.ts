@@ -131,14 +131,29 @@ export const colaborador = pgTable(
     tipoDocumento: text('tipo_documento').notNull(), // cedula | pasaporte
     idCifrado: text('id_cifrado').notNull(), // identificación cifrada (AES-256-GCM)
     idBidx: text('id_bidx').notNull(), // índice ciego (HMAC) para unicidad/búsqueda
+    // Paso 1 — Datos personales
     sexo: text('sexo'),
     fechaNacimiento: date('fecha_nacimiento'),
+    estadoCivil: text('estado_civil'),
+    telefono: text('telefono'),
+    correo: text('correo'),
+    // Paso 2 — Contrato y cargo
+    cargo: text('cargo'),
     tipoContrato: text('tipo_contrato').notNull(), // indefinido | definido | obra | servicios
     tipoPlanilla: text('tipo_planilla').notNull(),
     fechaIngreso: date('fecha_ingreso').notNull(),
     fechaTermino: date('fecha_termino'),
+    pProbatorio: boolean('p_probatorio').notNull().default(false),
     esTecnico: boolean('es_tecnico').notNull().default(false), // preaviso 2 meses (Art. 222)
+    // Paso 3 — Salario y banco (cuenta CIFRADA, ADR-007)
     salarioMensual: numeric('salario_mensual', { precision: 18, scale: 6 }).notNull(),
+    formaPago: text('forma_pago'), // cheque | ach | efectivo
+    idBanco: text('id_banco'),
+    tipoCuenta: text('tipo_cuenta'), // ahorro | corriente
+    cuentaCifrada: text('cuenta_cifrada'),
+    // Paso 5 — Retenciones
+    declaraRenta: boolean('declara_renta').notNull().default(false),
+    gastoRep: numeric('gasto_rep', { precision: 18, scale: 6 }),
     status: text('status').notNull().default('activo'), // activo | vacaciones | licencia | suspendido | cesante
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
     actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),

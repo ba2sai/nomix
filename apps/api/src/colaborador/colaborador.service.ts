@@ -14,12 +14,23 @@ export interface CrearColaborador {
   identificacion: string;
   sexo?: string | undefined;
   fechaNacimiento?: string | undefined;
+  estadoCivil?: string | undefined;
+  telefono?: string | undefined;
+  correo?: string | undefined;
+  cargo?: string | undefined;
   tipoContrato: string;
   tipoPlanilla: string;
   fechaIngreso: string;
   fechaTermino?: string | undefined;
+  pProbatorio?: boolean | undefined;
   esTecnico?: boolean | undefined;
   salarioMensual: string;
+  formaPago?: string | undefined;
+  idBanco?: string | undefined;
+  tipoCuenta?: string | undefined;
+  cuentaBancaria?: string | undefined;
+  declaraRenta?: boolean | undefined;
+  gastoRep?: string | undefined;
 }
 
 export type ActualizarColaborador = {
@@ -40,12 +51,16 @@ export class ColaboradorService {
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
   ) {}
 
-  /** Descifra la identificación y omite las columnas cifradas internas. */
+  /** Descifra los campos PII y omite las columnas cifradas internas. */
   private aSalida(f: FilaColaborador): Record<string, unknown> {
-    const { idCifrado, idBidx, ...resto } = f;
+    const { idCifrado, idBidx, cuentaCifrada, ...resto } = f;
     void idCifrado;
     void idBidx;
-    return { ...resto, identificacion: this.crypto.descifrar(f.idCifrado) };
+    return {
+      ...resto,
+      identificacion: this.crypto.descifrar(f.idCifrado),
+      cuentaBancaria: cuentaCifrada ? this.crypto.descifrar(cuentaCifrada) : null,
+    };
   }
 
   async listar(ctx: Ctx): Promise<Record<string, unknown>[]> {
@@ -78,12 +93,23 @@ export class ColaboradorService {
             idBidx: this.crypto.indiceCiego(dto.identificacion),
             sexo: dto.sexo ?? null,
             fechaNacimiento: dto.fechaNacimiento ?? null,
+            estadoCivil: dto.estadoCivil ?? null,
+            telefono: dto.telefono ?? null,
+            correo: dto.correo ?? null,
+            cargo: dto.cargo ?? null,
             tipoContrato: dto.tipoContrato,
             tipoPlanilla: dto.tipoPlanilla,
             fechaIngreso: dto.fechaIngreso,
             fechaTermino: dto.fechaTermino ?? null,
+            pProbatorio: dto.pProbatorio ?? false,
             esTecnico: dto.esTecnico ?? false,
             salarioMensual: dto.salarioMensual,
+            formaPago: dto.formaPago ?? null,
+            idBanco: dto.idBanco ?? null,
+            tipoCuenta: dto.tipoCuenta ?? null,
+            cuentaCifrada: dto.cuentaBancaria ? this.crypto.cifrar(dto.cuentaBancaria) : null,
+            declaraRenta: dto.declaraRenta ?? false,
+            gastoRep: dto.gastoRep ?? null,
           })
           .returning();
         return this.aSalida(f!);
@@ -106,12 +132,24 @@ export class ColaboradorService {
       }
       if (dto.sexo !== undefined) cambios.sexo = dto.sexo;
       if (dto.fechaNacimiento !== undefined) cambios.fechaNacimiento = dto.fechaNacimiento;
+      if (dto.estadoCivil !== undefined) cambios.estadoCivil = dto.estadoCivil;
+      if (dto.telefono !== undefined) cambios.telefono = dto.telefono;
+      if (dto.correo !== undefined) cambios.correo = dto.correo;
+      if (dto.cargo !== undefined) cambios.cargo = dto.cargo;
       if (dto.tipoContrato !== undefined) cambios.tipoContrato = dto.tipoContrato;
       if (dto.tipoPlanilla !== undefined) cambios.tipoPlanilla = dto.tipoPlanilla;
       if (dto.fechaIngreso !== undefined) cambios.fechaIngreso = dto.fechaIngreso;
       if (dto.fechaTermino !== undefined) cambios.fechaTermino = dto.fechaTermino;
+      if (dto.pProbatorio !== undefined) cambios.pProbatorio = dto.pProbatorio;
       if (dto.esTecnico !== undefined) cambios.esTecnico = dto.esTecnico;
       if (dto.salarioMensual !== undefined) cambios.salarioMensual = dto.salarioMensual;
+      if (dto.formaPago !== undefined) cambios.formaPago = dto.formaPago;
+      if (dto.idBanco !== undefined) cambios.idBanco = dto.idBanco;
+      if (dto.tipoCuenta !== undefined) cambios.tipoCuenta = dto.tipoCuenta;
+      if (dto.cuentaBancaria !== undefined)
+        cambios.cuentaCifrada = dto.cuentaBancaria ? this.crypto.cifrar(dto.cuentaBancaria) : null;
+      if (dto.declaraRenta !== undefined) cambios.declaraRenta = dto.declaraRenta;
+      if (dto.gastoRep !== undefined) cambios.gastoRep = dto.gastoRep;
 
       try {
         const [f] = await tx

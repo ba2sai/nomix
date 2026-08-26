@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Inject,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -46,5 +48,15 @@ export class PlanillaController {
       fecha: parsed.data.fecha,
       colaboradores: parsed.data.colaboradores,
     });
+  }
+
+  @Get('preview-empresa')
+  async previewEmpresa(@Query('fecha') fecha: unknown, @Sesion() sesion: SesionData): Promise<unknown> {
+    if (!sesion.empresaActivaId) {
+      throw new BadRequestException('Selecciona una empresa activa primero');
+    }
+    const f = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(fecha);
+    if (!f.success) throw new BadRequestException('Parámetro fecha=YYYY-MM-DD requerido');
+    return this.planilla.previewEmpresa(sesion.usuarioId, sesion.empresaActivaId, f.data);
   }
 }
