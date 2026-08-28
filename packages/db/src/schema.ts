@@ -21,6 +21,7 @@ import {
   numeric,
   jsonb,
   primaryKey,
+  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
@@ -52,6 +53,15 @@ export const empresa = pgTable('empresa', {
   tasaRiesgoProfesional: numeric('tasa_riesgo_profesional', { precision: 6, scale: 4 }),
   pagaAguinaldoAcostumbrado: boolean('paga_aguinaldo_acostumbrado').notNull().default(false),
   jurisdiccionId: text('jurisdiccion_id').notNull().default('PA'),
+  /**
+   * Convención de prorrateo del salario base en planillas de período parcial
+   * (doc 05 §2, consulta 📋 abierta). `mitad_mensual` = salario ÷ 2 por quincena
+   * sin importar los días del tramo, que es lo que reproduce el asiento real de
+   * jun-2026. `dias_reales` = salario diario × días del tramo.
+   */
+  metodoProrrateo: text('metodo_prorrateo').notNull().default('mitad_mensual'),
+  /** Divisor de la hora ordinaria: 208 (48h/sem) o 192 (base legal §12.2). */
+  horasMensuales: text('horas_mensuales').notNull().default('208'),
 });
 
 /** Membresía usuario↔empresa con vigencia (modelo de firma contable). */
@@ -88,26 +98,52 @@ export const regla = pgTable('regla', {
   confianza: text('confianza').notNull(), // verificado | verificar | pendiente
 });
 
-/** Catálogo de conceptos con matriz de incidencia (ADR-002). */
-export const concepto = pgTable('concepto', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  jurisdiccionId: text('jurisdiccion_id').notNull().default('PA'),
-  empresaId: uuid('empresa_id').references(() => empresa.id),
-  codigo: text('codigo').notNull(),
-  nombre: text('nombre').notNull(),
-  tipo: text('tipo').notNull(), // ingreso | deduccion | aporte_patronal | provision
-  incideCss: boolean('incide_css').notNull(),
-  tasaCssEspecial: numeric('tasa_css_especial', { precision: 8, scale: 6 }),
-  incideSeguroEducativo: boolean('incide_seguro_educativo').notNull(),
-  incideIsr: boolean('incide_isr').notNull(),
-  regimenIsr: text('regimen_isr').notNull(), // ordinario | gastos_representacion | exento
-  incideBaseXiii: boolean('incide_base_xiii').notNull(),
-  incidePromedioVacaciones: boolean('incide_promedio_vacaciones').notNull(),
-  incideBaseLiquidacion: boolean('incide_base_liquidacion').notNull(),
-  esInembargable: boolean('es_inembargable').notNull(),
-  vigenteDesde: date('vigente_desde').notNull(),
-  vigenteHasta: date('vigente_hasta'),
-});
+/**
+ * Catálogo de conceptos con matriz de incidencia (ADR-002).
+ *
+ * Un concepto de nómina es una FILA DE DATOS, no una clase de código. Cada uno
+ * declara en qué bases entra, y el motor lo consulta en vez de codificarlo. La
+ * tentación de escribir `if (concepto === 'xiii_mes')` se rechaza siempre.
+ *
+ * `empresa_id` nullable es lo que habilita convenios colectivos y regímenes
+ * especiales (CAPAC-SUNTRACS) sin tocar código: son filas que sobrescriben la
+ * regla general del país.
+ */
+export const concepto = pgTable(
+  'concepto',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jurisdiccionId: text('jurisdiccion_id').notNull().default('PA'),
+    empresaId: uuid('empresa_id').references(() => empresa.id),
+    codigo: text('codigo').notNull(),
+    nombre: text('nombre').notNull(),
+    tipo: text('tipo').notNull(), // ingreso | deduccion | aporte_patronal | provision
+    /** monto | horas | dias — decide si el movimiento trae importe o cantidad. */
+    unidad: text('unidad').notNull().default('monto'),
+    incideCss: boolean('incide_css').notNull(),
+    tasaCssEspecial: numeric('tasa_css_especial', { precision: 8, scale: 6 }),
+    incideSeguroEducativo: boolean('incide_seguro_educativo').notNull(),
+    incideIsr: boolean('incide_isr').notNull(),
+    regimenIsr: text('regimen_isr').notNull(), // ordinario | gastos_representacion | exento
+    incideBaseXiii: boolean('incide_base_xiii').notNull(),
+    incidePromedioVacaciones: boolean('incide_promedio_vacaciones').notNull(),
+    incideBaseLiquidacion: boolean('incide_base_liquidacion').notNull(),
+    esInembargable: boolean('es_inembargable').notNull(),
+    /** Artículo/ley que sustenta la incidencia. Alimenta la traza (ADR-005). */
+    baseLegal: text('base_legal').notNull(),
+    /** verificado | verificar | pendiente — mismo vocabulario que `regla`. */
+    confianza: text('confianza').notNull(),
+    vigenteDesde: date('vigente_desde').notNull(),
+    vigenteHasta: date('vigente_hasta'),
+  },
+  (t) => ({
+    // NULLS NOT DISTINCT: sin esto, Postgres trataría cada fila general
+    // (empresa_id NULL) como única y permitiría duplicados del mismo concepto.
+    uxConcepto: unique('ux_concepto_vigencia')
+      .on(t.jurisdiccionId, t.empresaId, t.codigo, t.vigenteDesde)
+      .nullsNotDistinct(),
+  }),
+);
 
 /**
  * Colaborador (ENT-001). Entidad central de RRHH. Primer subconjunto de campos;
@@ -187,6 +223,33 @@ export const planillaCabecera = pgTable('planilla_cabecera', {
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Devengado variable del período: horas extra, vacaciones, comisiones, ausencias,
+ * descuentos. Se ancla a la PLANILLA, no al calendario, para que el recálculo de
+ * `ProcesoService.calcular` siga siendo determinista (Zero-Recalculate).
+ *
+ * `cantidad` se usa cuando el concepto tiene unidad `horas`/`dias` (el motor la
+ * convierte a monto con el salario/hora y el factor de recargo vigentes);
+ * `monto` cuando el concepto es de unidad `monto` y trae el importe ya definido.
+ */
+export const movimiento = pgTable('movimiento', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(), // para RLS directo
+  planillaId: uuid('planilla_id')
+    .notNull()
+    .references(() => planillaCabecera.id, { onDelete: 'cascade' }),
+  colaboradorId: uuid('colaborador_id')
+    .notNull()
+    .references(() => colaborador.id),
+  conceptoCodigo: text('concepto_codigo').notNull(),
+  cantidad: money('cantidad'),
+  monto: money('monto'),
+  nota: text('nota'),
+  origen: text('origen').notNull().default('manual'), // manual | biometrico | importado
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  creadoPor: uuid('creado_por'),
+});
+
 /** Líneas de la planilla: un concepto por colaborador. */
 export const planillaDetalle = pgTable('planilla_detalle', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -229,6 +292,3 @@ export const eventoSaliente = pgTable('evento_saliente', {
   publicadoEn: timestamp('publicado_en', { withTimezone: true }),
 });
 
-// Nota: `money(...)` se usará en planilla_detalle / planilla_traza al modelar
-// esas tablas. Se declara aquí para fijar la convención numeric(18,6)→string.
-void money;

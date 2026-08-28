@@ -57,6 +57,12 @@ export interface ResultadoSeguridadSocial {
 export function calcularSeguridadSocial(
   baseCotizable: Money,
   tasas: TasasSeguridadSocial,
+  /**
+   * Base del Seguro Educativo cuando difiere de la de CSS. Por defecto son la
+   * misma, que es el caso del salario ordinario; las bases divergen cuando el
+   * catálogo declara un concepto que cotiza CSS pero no SE (ADR-002).
+   */
+  baseSeguroEducativo: Money = baseCotizable,
 ): ResultadoSeguridadSocial {
   const cssObrero: LineaCalculada = {
     concepto: 'css_obrero',
@@ -67,9 +73,9 @@ export function calcularSeguridadSocial(
   };
   const seObrero: LineaCalculada = {
     concepto: 'seguro_educativo_obrero',
-    base: baseCotizable,
+    base: baseSeguroEducativo,
     tasa: tasas.seObrero,
-    monto: baseCotizable.times(tasas.seObrero).round(2),
+    monto: baseSeguroEducativo.times(tasas.seObrero).round(2),
     baseLegal: 'Ley 13 de 1987',
   };
   const cssPatronal: LineaCalculada = {
@@ -81,9 +87,9 @@ export function calcularSeguridadSocial(
   };
   const sePatronal: LineaCalculada = {
     concepto: 'seguro_educativo_patronal',
-    base: baseCotizable,
+    base: baseSeguroEducativo,
     tasa: tasas.sePatronal,
-    monto: baseCotizable.times(tasas.sePatronal).round(2),
+    monto: baseSeguroEducativo.times(tasas.sePatronal).round(2),
     baseLegal: 'Ley 13 de 1987',
   };
   const riesgosProfesionales: LineaCalculada = {
@@ -102,5 +108,32 @@ export function calcularSeguridadSocial(
     riesgosProfesionales,
     totalObrero: cssObrero.monto.plus(seObrero.monto),
     totalPatronal: cssPatronal.monto.plus(sePatronal.monto).plus(riesgosProfesionales.monto),
+  };
+}
+
+/**
+ * Cuota obrera de CSS sobre una base con régimen de tasa propio (ADR-002).
+ *
+ * El caso vivo es el XIII Mes, que cotiza al 7.25% y no al 9.75%. La tasa llega
+ * desde el catálogo (`concepto.tasa_css_especial`), así que un régimen nuevo se
+ * agrega con un INSERT y no toca este código.
+ *
+ * ⚠️ Deliberadamente NO calcula la cuota patronal: la consulta A7 del
+ * cuestionario profesional ("cuota patronal sobre el XIII Mes") sigue abierta y
+ * la base legal §3.3 no la fija. Inventar una tasa aquí produciría un número con
+ * apariencia de certeza. Se añade cuando haya respuesta.
+ */
+export function calcularCssTasaEspecial(
+  concepto: string,
+  base: Money,
+  tasa: Rate,
+  baseLegal: string,
+): LineaCalculada {
+  return {
+    concepto,
+    base,
+    tasa,
+    monto: base.times(tasa).round(2),
+    baseLegal,
   };
 }

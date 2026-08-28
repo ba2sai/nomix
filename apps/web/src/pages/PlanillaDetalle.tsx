@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Boton, Tarjeta } from '../components/ui';
+import { MovimientosPanel } from './MovimientosPanel';
 
 const COLOR: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600',
@@ -27,6 +28,7 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
   if (isLoading || !data) return <p className="text-slate-500">Cargando…</p>;
 
   const t = data.totales;
+  const editable = data.estado === 'borrador' || data.estado === 'calculada';
   const fmtLinea = (m: string) => Number(m).toFixed(2);
 
   return (
@@ -45,7 +47,7 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
           </span>
         </div>
         <div className="flex gap-2">
-          {(data.estado === 'borrador' || data.estado === 'calculada') && (
+          {editable && (
             <Boton onClick={() => calcular.mutate()} disabled={pendiente}>
               {data.estado === 'borrador' ? 'Calcular' : 'Recalcular'}
             </Boton>
@@ -65,12 +67,42 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
 
       {errorMut && <p className="mb-4 text-sm text-red-600">{errorMut.message}</p>}
 
+      {editable && (
+        <MovimientosPanel
+          planillaId={id}
+          fechaPeriodo={data.periodoHasta}
+          onCambio={invalidar}
+        />
+      )}
+
+      {/* Honestidad sobre el estado de la investigacion legal: el calculo uso
+          conceptos cuya incidencia todavia nadie confirmo. */}
+      {t?.conceptosPendientes && t.conceptosPendientes.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <b>Calculo provisional.</b> Usa {t.conceptosPendientes.length} concepto
+          {t.conceptosPendientes.length === 1 ? '' : 's'} con incidencia sin verificar:{' '}
+          <span className="font-mono text-xs">{t.conceptosPendientes.join(', ')}</span>. Quedan
+          sujetos a la respuesta del asesor laboral (Bloque B1 del cuestionario).
+        </div>
+      )}
+
       {t && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Kpi titulo="Colaboradores" valor={String(t.colaboradores ?? 0)} plano />
           <Kpi titulo="Bruto" valor={t.bruto ?? '0'} />
           <Kpi titulo="Deducciones obrero" valor={t.deduccionesObrero ?? '0'} />
+          <Kpi titulo="Neto a pagar" valor={t.neto ?? t.netoAntesIsr ?? '0'} />
           <Kpi titulo="Costo empleador" valor={t.costoEmpleador ?? '0'} destacado />
+        </div>
+      )}
+
+      {/* Método de retención de ISR: la ley no lo prescribe (consulta A1),
+          Nomix eligió el acumulativo (ADR-014). Se muestra siempre visible,
+          no como advertencia — es una decisión de producto, no un hueco. */}
+      {t?.isr && Number(t.isr.retenido) > 0 && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <b>ISR — método acumulativo:</b> B/. {t.isr.retenido} retenidos en este período.{' '}
+          <span className="text-xs text-slate-400">{t.isr.nota}</span>
         </div>
       )}
 
@@ -88,7 +120,10 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
                   {c.lineas.map((l, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
                       <td className="py-1.5 text-slate-600">{l.concepto}</td>
-                      <td className="py-1.5 text-xs text-slate-400">{l.tipo}</td>
+                      <td className="py-1.5 text-xs text-slate-400">
+                        {l.tipo}
+                        {l.cantidad && ` · ${Number(l.cantidad).toString()}`}
+                      </td>
                       <td
                         className={`py-1.5 text-right tabular-nums ${
                           l.tipo === 'deduccion' ? 'text-red-600' : 'text-slate-800'

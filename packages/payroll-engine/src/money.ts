@@ -51,6 +51,17 @@ export class Money {
     return new Money(this.value.times(f));
   }
 
+  /**
+   * Divide por un divisor adimensional (horas mensuales "208", períodos "2").
+   * El cociente conserva la precisión interna: NUNCA se redondea aquí, solo en
+   * la frontera de salida (ADR-006), o los descuadres contra la CSS aparecen.
+   */
+  dividedBy(divisor: Rate | string): Money {
+    const d = typeof divisor === 'string' ? new Decimal(divisor) : divisor.decimal;
+    if (d.isZero()) throw new RangeError('División por cero en un cálculo monetario.');
+    return new Money(this.value.dividedBy(d));
+  }
+
   isZero(): boolean {
     return this.value.isZero();
   }
@@ -98,6 +109,22 @@ export class Rate {
 
   static of(input: string): Rate {
     return new Rate(new Decimal(input));
+  }
+
+  /**
+   * Factor total de un recargo: 1 + recargo. La hora extra diurna se paga al
+   * 125% del valor ordinario, no al 25% (Art. 33). Escribir `1 + 0.25` a mano
+   * en el motor es exactamente lo que ADR-010 prohíbe.
+   */
+  masUno(): Rate {
+    return new Rate(this.decimal.plus(1));
+  }
+
+  /** Proporción derivada: 1/2 de un mes, 13/30 de días. Para la traza (ADR-005). */
+  dividedBy(divisor: string): Rate {
+    const d = new Decimal(divisor);
+    if (d.isZero()) throw new RangeError('División por cero al derivar una proporción.');
+    return new Rate(this.decimal.dividedBy(d));
   }
 
   /** Porcentaje legible para trazabilidad ("13.2500%"). */

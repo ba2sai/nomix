@@ -99,17 +99,63 @@ export interface Planilla {
     deduccionesObrero?: string;
     cargasPatronales?: string;
     netoAntesIsr?: string;
+    /** Bruto - deducciones obrero, YA con el ISR retenido descontado. */
+    neto?: string;
     costoEmpleador?: string;
+    prorrateo?: string;
+    /** Conceptos cuya incidencia todavia no esta verificada (ADR-002). */
+    conceptosPendientes?: string[];
+    /** Metodo de retencion de ISR y sus supuestos declarados (ADR-014). */
+    isr?: { metodo: string; retenido: string; nota: string };
   } | null;
 }
 export interface PlanillaLinea {
   concepto: string;
   tipo: string;
+  cantidad: string | null;
   base: string | null;
   monto: string;
 }
 export interface PlanillaDetalle extends Planilla {
   colaboradores: { colaboradorId: string; nombre: string; lineas: PlanillaLinea[] }[];
+}
+
+/** Fila del catalogo de conceptos (ADR-002). */
+export interface Concepto {
+  codigo: string;
+  nombre: string;
+  tipo: 'ingreso' | 'deduccion' | 'aporte_patronal' | 'provision';
+  unidad: 'monto' | 'horas' | 'dias';
+  baseLegal: string;
+  confianza: 'verificado' | 'verificar' | 'pendiente';
+  incidencia: {
+    css: boolean;
+    tasaCssEspecial: string | null;
+    seguroEducativo: boolean;
+    isr: boolean;
+    regimenIsr: string;
+    xiii: boolean;
+    promedioVacaciones: boolean;
+    liquidacion: boolean;
+    inembargable: boolean;
+  };
+}
+
+export interface Movimiento {
+  id: string;
+  colaboradorId: string;
+  conceptoCodigo: string;
+  cantidad: string | null;
+  monto: string | null;
+  nota: string | null;
+  origen: string;
+}
+export interface CrearMovimiento {
+  colaboradorId: string;
+  conceptoCodigo: string;
+  cantidad?: string;
+  monto?: string;
+  nota?: string;
 }
 
 export const api = {
@@ -136,4 +182,12 @@ export const api = {
   calcularPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/calcular`),
   aprobarPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/aprobar`),
   cerrarPlanilla: (id: string) => req<Planilla>('POST', `/planillas/${id}/cerrar`),
+  // Catalogo de conceptos y movimientos del periodo
+  conceptos: (fecha: string) => req<Concepto[]>('GET', `/conceptos?fecha=${fecha}`),
+  movimientos: (planillaId: string) =>
+    req<Movimiento[]>('GET', `/planillas/${planillaId}/movimientos`),
+  crearMovimiento: (planillaId: string, dto: CrearMovimiento) =>
+    req<Movimiento>('POST', `/planillas/${planillaId}/movimientos`, dto),
+  eliminarMovimiento: (planillaId: string, movId: string) =>
+    req<{ ok: true }>('DELETE', `/planillas/${planillaId}/movimientos/${movId}`),
 };

@@ -298,12 +298,12 @@ semana previa al 15 de abril, 15 de agosto y 15 de diciembre (partidas del XIII)
 | 1 | Scaffolding: monorepo, Docker, CI, lint decimal | devops-infra | 🔓 |
 | 2 | `packages/db` — schema, RLS, migraciones | arquitecto + seguridad-datos | 🔓 |
 | 3 | `packages/rules` — resolución temporal | backend-nomina | 🔓 |
-| 4 | Catálogo de conceptos + siembra desde la base legal | backend-nomina | 🔓 |
-| 5 | `packages/payroll-engine` — CSS, SE, ISR, recargos | backend-nomina | 🔓 |
-| 6 | Asignación de descuentos (`ADR-004`) | backend-nomina | 🔓 |
-| 7 | Auth + membresía + RLS | seguridad-datos | 🔓 |
-| 8 | Máquina de estados de planilla | arquitecto-soluciones | ⏸️ Sin definir |
-| 9 | API + shell de UI | backend + frontend | 🔓 |
+| 4 | Catálogo de conceptos + siembra desde la base legal | backend-nomina | ✅ 32 conceptos |
+| 5 | `packages/payroll-engine` — CSS, SE, ISR, recargos | backend-nomina | ✅ CSS/SE/RP + recargos, devengo, ISR acumulativo (`ADR-014`) |
+| 6 | Asignación de descuentos (`ADR-004`) | backend-nomina | 🔓 `es_inembargable` ya viaja en el catálogo |
+| 7 | Auth + membresía + RLS | seguridad-datos | ✅ |
+| 8 | Máquina de estados de planilla | arquitecto-soluciones | ✅ borrador→calculada→aprobada→cerrada |
+| 9 | API + shell de UI | backend + frontend | ✅ base |
 | 10 | Exportadores ACH / SIPE / DGI | backend-nomina | 🟡 Tras el paso 0 |
 
 ### El paso 0 vale más que cualquier decisión técnica
@@ -326,6 +326,8 @@ Eso convierte los dos únicos bloqueantes externos del proyecto en trabajo norma
 | Fecha | Cambio |
 |---|---|
 | 2026-08-26 | Versión inicial. Cierra `ADR-010`, `ADR-011`, `ADR-012` |
+| 2026-08-28 | Pasos 4 y 8 completos. El motor se dirige por el catálogo de conceptos (`ADR-002`): `acumularBases` decide las bases por los flags de incidencia, no por el código del concepto. Nueva tabla `movimiento` (devengado del período) con su RLS. Prorrateo configurable por empresa (`empresa.metodo_prorrateo`). |
+| 2026-08-28 | ISR implementado con método acumulativo (`ADR-014`). Dos flujos paralelos (ordinario / gastos de representación), cada uno con su propia escala de tramos resuelta por vigencia (`resolverTramos`). El acumulado del año se reconstruye sumando la columna `base` de líneas `isr_retencion` de períodos anteriores — sin guardar una cifra "acumulada" aparte que se desincronizaría al recalcular. |
 
 > Todo cambio de arquitectura se registra **primero** como ADR en
 > `docs/nomix/08_decisiones_arquitectura.md`, y después se refleja aquí.

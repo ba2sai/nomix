@@ -10,6 +10,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import { schema } from '@nomix/db';
 import { hashPassword } from './auth/password.js';
+import { sembrarConceptos } from './seed-conceptos.js';
 
 const EMPRESA_A = '11111111-1111-1111-1111-111111111111';
 const EMPRESA_B = '22222222-2222-2222-2222-222222222222';
@@ -35,12 +36,27 @@ async function main(): Promise<void> {
       (${USUARIO}, 'demo@nomix.pa', ${hash}, 'Usuario Demo', true)
     on conflict (id) do update set password_hash = excluded.password_hash`);
 
-  // Membresías vigentes en ambas empresas (roles distintos)
+  // Membresías vigentes en ambas empresas (roles distintos).
+  //
+  // La PK es (usuario_id, empresa_id, vigente_desde), así que un `current_date`
+  // aquí NO es idempotente: correr el seed en un día distinto crea una fila
+  // nueva en vez de chocar con el ON CONFLICT, duplicando la membresía activa
+  // (mis_empresas() la lista dos veces). El WHERE NOT EXISTS evita insertar si
+  // YA hay una membresía activa (vigente_hasta is null), sin importar la fecha.
   await db.execute(sql`
-    insert into usuario_empresa (usuario_id, empresa_id, rol, vigente_desde, vigente_hasta) values
-      (${USUARIO}, ${EMPRESA_A}, 'admin_rrhh',       current_date, null),
-      (${USUARIO}, ${EMPRESA_B}, 'contador_auditor', current_date, null)
-    on conflict do nothing`);
+    insert into usuario_empresa (usuario_id, empresa_id, rol, vigente_desde, vigente_hasta)
+    select ${USUARIO}, ${EMPRESA_A}, 'admin_rrhh', current_date, null
+    where not exists (
+      select 1 from usuario_empresa
+      where usuario_id = ${USUARIO} and empresa_id = ${EMPRESA_A} and vigente_hasta is null
+    )`);
+  await db.execute(sql`
+    insert into usuario_empresa (usuario_id, empresa_id, rol, vigente_desde, vigente_hasta)
+    select ${USUARIO}, ${EMPRESA_B}, 'contador_auditor', current_date, null
+    where not exists (
+      select 1 from usuario_empresa
+      where usuario_id = ${USUARIO} and empresa_id = ${EMPRESA_B} and vigente_hasta is null
+    )`);
 
   // Tarifa de Riesgos Profesionales por empresa (Empresa A: oficina 1.05%)
   await db.execute(sql`update empresa set tasa_riesgo_profesional = 0.0105 where id = ${EMPRESA_A}`);
@@ -59,6 +75,9 @@ async function main(): Promise<void> {
       ('PA', null, 'css_patronal',              ${tasa('0.1325')}, '2025-04-01', '2027-02-28', 'Ley 462 de 2025', 'verificado'),
       ('PA', null, 'css_patronal',              ${tasa('0.1425')}, '2027-03-01', '2029-02-28', 'Ley 462 de 2025', 'verificado'),
       ('PA', null, 'css_patronal',              ${tasa('0.1525')}, '2029-03-01', null,         'Ley 462 de 2025', 'verificado')`);
+
+  // Catálogo de conceptos + factores de recargo (ADR-002).
+  await sembrarConceptos(db);
 
   // eslint-disable-next-line no-console
   console.log('✓ Seed: demo@nomix.pa / Demo1234, empresas A/B, reglas de tasas CSS/SE');

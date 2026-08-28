@@ -7,8 +7,11 @@ import { EmpresaController } from './empresa/empresa.controller.js';
 import { PlanillaController } from './planilla/planilla.controller.js';
 import { PlanillaService } from './planilla/planilla.service.js';
 import { ProcesoService } from './planilla/proceso.service.js';
+import { MovimientoService } from './planilla/movimiento.service.js';
 import { ColaboradorController } from './colaborador/colaborador.controller.js';
 import { ColaboradorService } from './colaborador/colaborador.service.js';
+import { ConceptoController } from './concepto/concepto.controller.js';
+import { ConceptoService } from './concepto/concepto.service.js';
 
 @Module({
   imports: [DbModule, AuthModule, CryptoModule],
@@ -17,7 +20,14 @@ import { ColaboradorService } from './colaborador/colaborador.service.js';
     EmpresaController,
     PlanillaController,
     ColaboradorController,
+    ConceptoController,
   ],
-  providers: [PlanillaService, ProcesoService, ColaboradorService],
+  providers: [
+    PlanillaService,
+    ProcesoService,
+    MovimientoService,
+    ColaboradorService,
+    ConceptoService,
+  ],
 })
 export class AppModule {}

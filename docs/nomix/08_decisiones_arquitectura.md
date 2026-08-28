@@ -480,6 +480,61 @@ consume resultados ya calculados y los mueve.
 
 ---
 
+## ADR-014 — Retención de ISR: método acumulativo, no proyección simple
+
+**Estado:** `ACCEPTED`
+
+### Contexto
+La consulta **A1** de `07_consultas_profesional_planilla.md` sigue sin respuesta: la
+ley panameña no prescribe **cómo** debe retener el empleador ISR quincena a
+quincena — el instructivo de la DGI describe solo la declaración anual (base legal
+§4.5). La documentación heredada de PlaniFácil proponía proyección simple
+(`salario × 13 / 24`), pero esa fórmula:
+
+- presupone el XIII Mes dentro de la base anual, mientras el XIII se grava aparte en
+  su propio pago → riesgo de doble gravamen;
+- falla ante ingreso variable (comisiones, horas extra, gastos de representación) y
+  cambios de salario a mitad de año, obligando a un ajuste traumático de diciembre.
+
+### Decisión
+Nomix retiene con el **método acumulativo**: en cada período, recalcula el impuesto
+causado sobre el ingreso gravable acumulado del año a la fecha (histórico de
+`planilla_detalle` + este período) y retiene solo la diferencia contra lo ya
+retenido. Dos flujos paralelos, cada uno con su propia escala progresiva y su propio
+acumulado — el ordinario (Art. 700 CF) y el de gastos de representación (Art. 701
+lit. l CF) — porque el Formulario 03 los reporta en columnas separadas
+(`docs/nomix/09_formatos_reales_planifacil.md` §2).
+
+Implementación: `packages/payroll-engine/src/planilla/isr.ts` (cálculo puro de
+tramos y de la retención incremental) + `apps/api/src/planilla/isr-acumulado.ts`
+(lee el histórico del año sumando la columna `base` de líneas `isr_retencion`
+persistidas, nunca una cifra "acumulada" aparte que se desincronizaría si un período
+anterior se recalcula).
+
+**Sub-decisiones declaradas** (ninguna tiene respaldo legal firme; se documentan
+para que sean auditables y corregibles):
+
+| Sub-decisión | Elegido | Por qué |
+|---|---|---|
+| ¿Se resta CSS/SE de la base gravable? | **No** | La secuencia oficial del instructivo DGI (base legal §4.3, líneas 6-25) no menciona restarlas — solo resta gastos de representación y deducciones personales. La documentación heredada que sí las restaba no cita esa secuencia. |
+| Deducción básica de B/.800 | **No se aplica automáticamente** | Base legal §4.2: es de la declaración **conjunta anual**, no una deducción automática de planilla. Aplicarla en cada quincena sería un error a escala. |
+| Deducciones personales (médicos, hipoteca, jubilación) | **B/.0 (no capturadas)** | No existe campo en la ficha del colaborador. Queda como `deduccionesPersonalesAnuales: Money.ZERO` explícito en el código, listo para recibir un valor real cuando se agregue el campo. |
+| XIII Mes en el flujo acumulativo | **Fuera de alcance** — el módulo XIII no existe todavía | Evita el riesgo de doble gravamen que motivó esta decisión en primer lugar; se diseñará su propio tratamiento cuando se construya `WF-002`. |
+| Recalcular un período pasado después de uno posterior | **No reajusta automáticamente el posterior** | Igual que cualquier sistema de retención acumulativa: se asume que los períodos se calculan y aprueban en orden cronológico dentro del año. Aprobar congela el período (máquina de estados existente), lo que limita el riesgo en la práctica. |
+
+### Consecuencias
+- ✅ El sistema nunca retiene de más a mitad de año por ingreso variable — se
+  autocorrige en el siguiente corte sin ajuste de fin de año.
+- ✅ Cada línea de retención es auditable: su `base` es la de su propio período, su
+  traza cita el artículo y el método (`ADR-014`).
+- ⚠️ Todas las sub-decisiones de la tabla de arriba son supuestos declarados, no
+  hechos verificados. `totales.isr.nota` lo expone en cada planilla calculada — no
+  es letra pequeña, es visible en la UI (`PlanillaDetalle`).
+- ⚠️ Sigue pendiente: la escala de gastos de representación tiene un tope declarado
+  de "no exceder el 100% del salario" (base legal §4.4) que Nomix todavía no valida.
+
+---
+
 ## Impacto en los diferenciadores de producto
 
 ### Factor WOW #4 — Pre-auditoría fiscal: ahora es concreto

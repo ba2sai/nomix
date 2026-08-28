@@ -1,11 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { schema } from '@nomix/db';
-import { Money, calcularSeguridadSocial, type LineaCalculada } from '@nomix/payroll-engine';
+import {
+  Money,
+  calcularSeguridadSocial,
+  devengarSalarioBase,
+  type LineaCalculada,
+} from '@nomix/payroll-engine';
 import { DB } from '../db/db.module.js';
 import type { DbHandle } from '../db/client.js';
 import { withContext } from '../db/tenant.js';
 import { resolverTasasSS, type TasasResueltas } from './tasas.js';
+import { resolverParametrosDevengo } from './devengo-params.js';
 
 export interface ColaboradorInput {
   nombre: string;
@@ -109,13 +115,25 @@ export class PlanillaService {
   }
 
   /**
-   * Previsualiza sobre los colaboradores ACTIVOS guardados de la empresa,
-   * usando su salario base mensual (punto de partida; el devengado del período
-   * —horas extra, ausencias— llega cuando exista el módulo de transacciones).
+   * Previsualiza sobre los colaboradores ACTIVOS guardados de la empresa.
+   *
+   * Aplica el MISMO prorrateo que `ProcesoService.calcular`, para que el
+   * simulador y la planilla persistida no den números distintos sobre los
+   * mismos datos. Lo que aún no incluye es el devengado variable del período:
+   * los movimientos se capturan contra una planilla y aquí no hay ninguna.
    */
-  async previewEmpresa(usuarioId: string, empresaId: string, fecha: string): Promise<unknown> {
+  async previewEmpresa(
+    usuarioId: string,
+    empresaId: string,
+    fecha: string,
+    tipoPlanilla = 'quincenal',
+  ): Promise<unknown> {
     return withContext(this.handle.db, { usuarioId, empresaId }, async (tx) => {
       const tasas = await resolverTasasSS(tx, fecha);
+      const params = await resolverParametrosDevengo(tx, tipoPlanilla, fecha);
+      // El período del preview es el mes de `fecha`; con `mitad_mensual` no
+      // influye, y con `dias_reales` da los días efectivos del corte.
+      const periodo = { desde: `${fecha.slice(0, 7)}-01`, hasta: fecha };
       const colabs = await tx
         .select({
           nombres: schema.colaborador.nombres,
@@ -125,10 +143,17 @@ export class PlanillaService {
         .from(schema.colaborador)
         .where(eq(schema.colaborador.status, 'activo'));
       const filas = colabs.map((c) =>
-        this.lineaColaborador(`${c.nombres} ${c.apellidos}`, Money.of(c.salario), tasas),
+        this.lineaColaborador(
+          `${c.nombres} ${c.apellidos}`,
+          devengarSalarioBase(Money.of(c.salario), periodo, params).monto,
+          tasas,
+        ),
       );
       const base = this.armarRespuesta(fecha, tasas, filas);
-      return { ...base, baseCalculo: 'salario base mensual de colaboradores activos' };
+      return {
+        ...base,
+        baseCalculo: `salario base prorrateado (${params.metodo}) de colaboradores activos`,
+      };
     });
   }
 }

@@ -18,6 +18,7 @@ ALTER TABLE colaborador       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planilla_cabecera ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planilla_detalle  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planilla_traza    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE movimiento        ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION app_current_empresa() RETURNS uuid
   LANGUAGE sql STABLE AS $$
@@ -66,6 +67,10 @@ CREATE POLICY planilla_detalle_aislado ON planilla_detalle
   WITH CHECK (empresa_id = app_current_empresa());
 DROP POLICY IF EXISTS planilla_traza_aislada ON planilla_traza;
 CREATE POLICY planilla_traza_aislada ON planilla_traza
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+DROP POLICY IF EXISTS movimiento_aislado ON movimiento;
+CREATE POLICY movimiento_aislado ON movimiento
   USING (empresa_id = app_current_empresa())
   WITH CHECK (empresa_id = app_current_empresa());
 

@@ -39,4 +39,38 @@ describe.skipIf(!DATABASE_URL)('withTenant — aislamiento RLS por la capa de ap
     const filas = await handle.db.select().from(schema.empresa);
     expect(filas).toEqual([]);
   });
+
+  /**
+   * Los movimientos llevan el devengado del período: horas de un empleado
+   * concreto y sus descuentos. Es de las tablas más sensibles del sistema, así
+   * que su aislamiento se prueba igual que el de las demás (ARCHITECTURE §5.4).
+   */
+  describe('movimiento', () => {
+    it('con empresa A activa, no ve movimientos de la empresa B', async () => {
+      const filas = await withTenant(handle.db, EMPRESA_A, (tx) =>
+        tx.select().from(schema.movimiento),
+      );
+      expect(filas.every((m) => m.empresaId === EMPRESA_A)).toBe(true);
+    });
+
+    it('sin contexto de inquilino, no ve ningún movimiento', async () => {
+      const filas = await handle.db.select().from(schema.movimiento);
+      expect(filas).toEqual([]);
+    });
+
+    it('el WITH CHECK impide sembrar un movimiento en otra empresa', async () => {
+      await expect(
+        withTenant(handle.db, EMPRESA_A, (tx) =>
+          tx.insert(schema.movimiento).values({
+            empresaId: EMPRESA_B, // ← intento de fuga de inquilino
+            planillaId: '00000000-0000-0000-0000-000000000001',
+            colaboradorId: '00000000-0000-0000-0000-000000000002',
+            conceptoCodigo: 'extra_diurna',
+            cantidad: '1',
+            origen: 'manual',
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+  });
 });
