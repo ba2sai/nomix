@@ -1,4 +1,10 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { schema } from '@nomix/db';
 import { DB } from '../db/db.module.js';
@@ -58,6 +64,15 @@ export class MovimientoService {
       // captura tiene que corresponder a su unidad. Validarlo aquí evita que un
       // movimiento inconsistente reviente a mitad del cálculo.
       const catalogo = await cargarCatalogo(tx, cab.periodoHasta);
+      // Un código desconocido es un error de QUIEN LLAMA, no del servidor: sin
+      // esta comprobación el Error del catálogo sale como 500 y el operador ve
+      // "Internal server error" en vez de qué concepto escribió mal.
+      if (!catalogo.tiene(dto.conceptoCodigo)) {
+        throw new BadRequestException(
+          `El concepto '${dto.conceptoCodigo}' no está en el catálogo vigente al ` +
+            `${cab.periodoHasta}. Revisa el código (ADR-002).`,
+        );
+      }
       const concepto = catalogo.get(dto.conceptoCodigo);
       if (concepto.unidad === 'monto' && dto.monto === undefined) {
         throw new ConflictException(`El concepto '${concepto.codigo}' se captura por monto.`);

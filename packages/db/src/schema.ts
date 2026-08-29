@@ -267,6 +267,69 @@ export const movimiento = pgTable('movimiento', {
   creadoPor: uuid('creado_por'),
 });
 
+/**
+ * Conceptos FIJOS del colaborador (`ADR-021`).
+ *
+ * Lo que se repite período tras período sin que nadie lo vuelva a teclear:
+ * gastos de representación, dietas, un descuento directo pactado. Hasta ahora
+ * la ficha solo tenía la columna `gasto_rep`, que además **no se usaba en el
+ * cálculo**: el dato estaba capturado y la planilla lo ignoraba.
+ *
+ * Es una tabla y no más columnas en `colaborador` por la misma razón que el
+ * catálogo de conceptos es dato y no código (`ADR-002`): asignar un concepto
+ * nuevo a alguien debe ser un INSERT, no una migración. Y lleva vigencia
+ * propia porque estas asignaciones caducan —un descuento se termina de pagar,
+ * una dieta se aprueba solo por un semestre— y la planilla de marzo no puede
+ * recalcularse con lo que se pactó en agosto (`ADR-001`).
+ */
+export const colaboradorConcepto = pgTable('colaborador_concepto', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(), // para RLS directo
+  colaboradorId: uuid('colaborador_id')
+    .notNull()
+    .references(() => colaborador.id, { onDelete: 'cascade' }),
+  conceptoCodigo: text('concepto_codigo').notNull(),
+  /** Se usa uno u otro según la `unidad` del concepto, igual que `movimiento`. */
+  monto: money('monto'),
+  cantidad: money('cantidad'),
+  vigenteDesde: date('vigente_desde').notNull(),
+  /** null = sin fecha de fin. */
+  vigenteHasta: date('vigente_hasta'),
+  nota: text('nota'),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  creadoPor: uuid('creado_por'),
+});
+
+/**
+ * Documentos del colaborador: contratos, cédula, certificaciones (`ADR-022`).
+ *
+ * La fila describe el archivo; el archivo vive en disco. No se guarda el
+ * contenido en `bytea` porque un contrato escaneado de varios MB por cada
+ * colaborador infla la base y, con ella, cada respaldo y cada restauración
+ * PITR (`ADR-012`) — justo la operación que uno quiere rápida y predecible.
+ *
+ * `almacen_id` es un UUID, NO el nombre que subió el usuario. El nombre
+ * original se guarda aparte, solo para mostrarlo y para la descarga: usarlo
+ * como ruta invita a `../../etc/passwd` y a colisiones entre dos "contrato.pdf".
+ */
+export const documentoColaborador = pgTable('documento_colaborador', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(), // para RLS directo
+  colaboradorId: uuid('colaborador_id')
+    .notNull()
+    .references(() => colaborador.id, { onDelete: 'cascade' }),
+  /** contrato | cedula | certificacion | otro */
+  tipo: text('tipo').notNull(),
+  /** Nombre con el que el usuario lo subió. Se muestra; nunca se usa como ruta. */
+  nombre: text('nombre').notNull(),
+  mime: text('mime').notNull(),
+  tamano: text('tamano').notNull(), // bytes, como texto para no perder precisión
+  /** SHA-256 del contenido: detecta corrupción y duplicados exactos. */
+  hash: text('hash').notNull(),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  creadoPor: uuid('creado_por'),
+});
+
 /** Líneas de la planilla: un concepto por colaborador. */
 export const planillaDetalle = pgTable('planilla_detalle', {
   id: uuid('id').primaryKey().defaultRandom(),

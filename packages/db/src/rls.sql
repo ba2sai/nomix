@@ -18,6 +18,8 @@ ALTER TABLE planilla_cabecera ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planilla_detalle  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planilla_traza    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE movimiento        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE colaborador_concepto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documento_colaborador ENABLE ROW LEVEL SECURITY;
 ALTER TABLE acceso_auditoria  ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION app_current_usuario() RETURNS uuid
@@ -140,6 +142,23 @@ CREATE POLICY planilla_traza_aislada ON planilla_traza
   WITH CHECK (empresa_id = app_current_empresa());
 DROP POLICY IF EXISTS movimiento_aislado ON movimiento;
 CREATE POLICY movimiento_aislado ON movimiento
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+
+-- conceptos fijos del colaborador (ADR-021): mismo aislamiento que el resto.
+-- Llevan el monto de un descuento o de unos gastos de representación, así que
+-- son tan sensibles como la propia ficha.
+DROP POLICY IF EXISTS colaborador_concepto_aislado ON colaborador_concepto;
+CREATE POLICY colaborador_concepto_aislado ON colaborador_concepto
+  USING (empresa_id = app_current_empresa())
+  WITH CHECK (empresa_id = app_current_empresa());
+
+-- documentos (ADR-022): un contrato lleva el salario pactado, así que su
+-- metadato es tan sensible como la ficha. El archivo en disco queda fuera del
+-- alcance del RLS por definición — de ahí que la ruta se derive del id y que
+-- la descarga pase siempre por la API, nunca por un servidor de estáticos.
+DROP POLICY IF EXISTS documento_aislado ON documento_colaborador;
+CREATE POLICY documento_aislado ON documento_colaborador
   USING (empresa_id = app_current_empresa())
   WITH CHECK (empresa_id = app_current_empresa());
 

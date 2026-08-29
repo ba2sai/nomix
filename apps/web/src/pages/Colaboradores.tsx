@@ -27,7 +27,7 @@ export function Colaboradores() {
       </div>
 
       {isLoading && <p className="text-slate-500">Cargando…</p>}
-      {error && <p className="text-red-600">{(error as Error).message}</p>}
+      {error && <p className="text-red-600">{error.message}</p>}
 
       {data && data.length === 0 && (
         <Tarjeta className="text-center text-slate-500">
@@ -50,10 +50,21 @@ export function Colaboradores() {
             </thead>
             <tbody>
               {data.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-slate-600">{c.codEmpleado}</td>
+                <tr
+                  key={c.id}
+                  className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                >
+                  {/* La fila entera abre la ficha — no es necesaria una columna
+                      "acciones" aparte para lo que hoy es la única acción. */}
+                  <td className="px-4 py-3 font-mono text-slate-600">
+                    <Link to={`/colaboradores/${c.id}`} className="block">
+                      {c.codEmpleado}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-800">
-                    {c.nombres} {c.apellidos}
+                    <Link to={`/colaboradores/${c.id}`} className="block hover:text-marca-700 hover:underline">
+                      {c.nombres} {c.apellidos}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{c.cargo ?? '—'}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{c.identificacion}</td>

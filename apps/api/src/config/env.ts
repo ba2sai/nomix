@@ -14,6 +14,13 @@ const envSchema = z.object({
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(28800),
   // Clave maestra de cifrado de PII (ADR-007). 32 bytes en base64 (44 chars).
   FIELD_ENCRYPTION_KEY: z.string().min(44),
+  /**
+   * Almacén de documentos del colaborador (ADR-022). Lleva contratos, así que
+   * la carpeta debe estar en el volumen que entra al respaldo — no en /tmp.
+   * Tiene default para no romper los `.env` existentes, pero en producción se
+   * fija explícitamente.
+   */
+  DOCUMENTOS_DIR: z.string().min(1).default('./almacen/documentos'),
 });
 
 export type Env = z.infer<typeof envSchema>;

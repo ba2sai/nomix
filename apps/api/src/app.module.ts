@@ -11,6 +11,8 @@ import { ProcesoService } from './planilla/proceso.service.js';
 import { MovimientoService } from './planilla/movimiento.service.js';
 import { ColaboradorController } from './colaborador/colaborador.controller.js';
 import { ColaboradorService } from './colaborador/colaborador.service.js';
+import { ConceptoFijoService } from './colaborador/concepto-fijo.service.js';
+import { DocumentoService } from './colaborador/documento.service.js';
 import { ConceptoController } from './concepto/concepto.controller.js';
 import { ConceptoService } from './concepto/concepto.service.js';
 
@@ -28,6 +30,8 @@ import { ConceptoService } from './concepto/concepto.service.js';
     ProcesoService,
     MovimientoService,
     ColaboradorService,
+    ConceptoFijoService,
+    DocumentoService,
     ConceptoService,
   ],
 })

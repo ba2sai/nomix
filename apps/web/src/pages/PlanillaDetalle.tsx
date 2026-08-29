@@ -37,7 +37,6 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
 
   const t = data.totales;
   const editable = data.estado === 'borrador' || data.estado === 'calculada';
-  const fmtLinea = (m: string) => Number(m).toFixed(2);
 
   return (
     <div>
@@ -189,51 +188,14 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
       ) : (
         <div className="space-y-4">
           {data.colaboradores.map((c) => (
-            <Tarjeta key={c.colaboradorId}>
-              <h3 className="mb-3 font-semibold text-slate-800">{c.nombre}</h3>
-              <table className="w-full text-sm">
-                <tbody>
-                  {c.lineas.map((l, i) => (
-                    <tr
-                      key={i}
-                      onClick={() => setInspeccion({ linea: l, colaborador: c.nombre })}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setInspeccion({ linea: l, colaborador: c.nombre });
-                        }
-                      }}
-                      title="Ver por qué esta cifra"
-                      className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
-                    >
-                      <td className="py-1.5 text-slate-600">
-                        {l.concepto}
-                        {/* Una línea sin rastro se marca en la propia tabla: si
-                            hay que buscarla abriendo una por una, nadie la ve. */}
-                        {!l.traza && (
-                          <span className="ml-2 text-xs text-amber-600" title="Sin traza">
-                            ⚠
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-1.5 text-xs text-slate-400">
-                        {l.tipo}
-                        {l.cantidad && ` · ${Number(l.cantidad).toString()}`}
-                      </td>
-                      <td
-                        className={`py-1.5 text-right tabular-nums ${
-                          l.tipo === 'deduccion' ? 'text-red-600' : 'text-slate-800'
-                        }`}
-                      >
-                        {l.tipo === 'deduccion' ? '−' : ''}
-                        {fmtLinea(l.monto)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Tarjeta>
+            <FichaColaborador
+              key={c.colaboradorId}
+              nombre={c.nombre}
+              lineas={c.lineas}
+              onInspeccionar={(l) => {
+                setInspeccion({ linea: l, colaborador: c.nombre });
+              }}
+            />
           ))}
         </div>
       )}
@@ -241,9 +203,137 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
       <InspectionDrawer
         linea={inspeccion?.linea ?? null}
         colaborador={inspeccion?.colaborador ?? ''}
-        onCerrar={() => setInspeccion(null)}
+        onCerrar={() => {
+          setInspeccion(null);
+        }}
       />
     </div>
+  );
+}
+
+/**
+ * Desglose de un colaborador.
+ *
+ * Las tres clases de línea NO se mezclan en una sola tabla. Antes sí, y el
+ * resultado se prestaba a leer el aporte patronal como si el trabajador lo
+ * pagara o como si engrosara la planilla: son cifras del MISMO tamaño, en la
+ * MISMA columna, y nada decía que unas se restan del sueldo y otras no.
+ *
+ * Aquí el cuerpo de la tarjeta es lo que le pasa al colaborador —lo que gana,
+ * lo que se le retiene y lo que recibe—, y el costo del empleador va aparte,
+ * plegado y rotulado como lo que es: dinero que paga la empresa ADEMÁS del
+ * salario, y que no toca el neto.
+ */
+function FichaColaborador({
+  nombre,
+  lineas,
+  onInspeccionar,
+}: {
+  nombre: string;
+  lineas: PlanillaLinea[];
+  onInspeccionar: (l: PlanillaLinea) => void;
+}) {
+  const [verPatronal, setVerPatronal] = useState(false);
+  const fmtLinea = (m: string) => Number(m).toFixed(2);
+
+  const delTrabajador = lineas.filter((l) => l.tipo !== 'aporte_patronal');
+  const patronales = lineas.filter((l) => l.tipo === 'aporte_patronal');
+
+  // El neto por persona no estaba en ninguna parte: solo el total de la
+  // planilla. Es la cifra que el colaborador va a comparar con su depósito.
+  const neto = delTrabajador.reduce(
+    (acc, l) => (l.tipo === 'deduccion' ? acc - Number(l.monto) : acc + Number(l.monto)),
+    0,
+  );
+  const costoPatronal = patronales.reduce((acc, l) => acc + Number(l.monto), 0);
+
+  const fila = (l: PlanillaLinea, i: number) => (
+    <tr
+      key={i}
+      onClick={() => {
+        onInspeccionar(l);
+      }}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onInspeccionar(l);
+        }
+      }}
+      title="Ver por qué esta cifra"
+      className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+    >
+      <td className="py-1.5 text-slate-600">
+        {l.concepto}
+        {/* Una línea sin rastro se marca en la propia tabla: si hay que
+            buscarla abriendo una por una, nadie la ve. */}
+        {!l.traza && (
+          <span className="ml-2 text-xs text-amber-600" title="Sin traza">
+            ⚠
+          </span>
+        )}
+      </td>
+      <td className="py-1.5 text-xs text-slate-400">
+        {l.tipo}
+        {l.cantidad && ` · ${Number(l.cantidad).toString()}`}
+      </td>
+      <td
+        className={`py-1.5 text-right tabular-nums ${
+          l.tipo === 'deduccion' ? 'text-red-600' : 'text-slate-800'
+        }`}
+      >
+        {l.tipo === 'deduccion' ? '−' : ''}
+        {fmtLinea(l.monto)}
+      </td>
+    </tr>
+  );
+
+  return (
+    <Tarjeta>
+      <h3 className="mb-3 font-semibold text-slate-800">{nombre}</h3>
+
+      <table className="w-full text-sm">
+        <tbody>{delTrabajador.map(fila)}</tbody>
+        <tfoot>
+          <tr className="border-t-2 border-slate-200">
+            <td className="pt-2 font-semibold text-slate-700" colSpan={2}>
+              Neto a pagar
+            </td>
+            <td className="pt-2 text-right font-semibold tabular-nums text-slate-900">
+              {neto.toFixed(2)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {patronales.length > 0 && (
+        <div className="mt-4 border-t border-dashed border-slate-200 pt-3">
+          <button
+            onClick={() => {
+              setVerPatronal((v) => !v);
+            }}
+            className="flex w-full items-center justify-between text-left text-xs text-slate-400 hover:text-slate-600"
+            aria-expanded={verPatronal}
+          >
+            <span>
+              {verPatronal ? '▾' : '▸'} Costo del empleador · no se descuenta al colaborador
+            </span>
+            <span className="tabular-nums">+{costoPatronal.toFixed(2)}</span>
+          </button>
+          {verPatronal && (
+            <>
+              <p className="mt-2 text-xs text-slate-400">
+                Aportes que paga la empresa <b>además</b> del salario (CSS patronal, seguro
+                educativo, riesgos profesionales). No entran en el bruto ni en el neto de arriba.
+              </p>
+              <table className="mt-1 w-full text-sm opacity-75">
+                <tbody>{patronales.map(fila)}</tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+    </Tarjeta>
   );
 }
 

@@ -1056,6 +1056,147 @@ que un bug de aplicación puede saltarse.
 
 ---
 
+## ADR-021 — Conceptos fijos del colaborador: se materializan como movimientos
+
+**Estado:** ✅ Aceptado · **Depende de:** `ADR-002`, `ADR-004`, `ADR-001`
+
+### El problema
+
+La ficha del colaborador tenía una columna `gasto_rep` y **el cálculo no la
+miraba**. El dato estaba capturado, el usuario asumía razonablemente que se
+pagaría, y la planilla lo ignoraba en silencio — que es la peor de las tres
+opciones posibles. Todo lo recurrente (gastos de representación, dietas, un
+descuento pactado) había que volver a teclearlo como movimiento en cada
+quincena, o no se pagaba.
+
+### La decisión
+
+Una tabla `colaborador_concepto` con vigencia, y —esta es la parte que importa—
+sus filas **se materializan como `movimiento` con `origen = 'ficha'` al crear
+la planilla**, en vez de tratarse como una rama nueva dentro del motor.
+
+Materializar en vez de bifurcar es lo que hace barato todo lo demás. Al ser
+movimientos normales heredan, sin una sola línea nueva en el cálculo:
+
+- la matriz de incidencia del catálogo (`ADR-002`) — y con ella su régimen de
+  ISR propio, sus bases de CSS, su entrada o no al promedio de vacaciones;
+- los topes del Art. 161 si resultan ser descuentos de acreedor (`ADR-004`);
+- la traza que responde "¿por qué esta cifra?" (`ADR-005`).
+
+La alternativa —un `if` en el motor que sume los conceptos de la ficha— habría
+duplicado toda esa lógica en una segunda ruta que envejecería aparte.
+
+### Por qué al CREAR y no al calcular
+
+Se materializan cuando se abre el período, no cuando se calcula. Así aparecen
+en el panel de movimientos **antes** de producir ninguna cifra, y el operador
+puede ajustarlos o quitarlos en ese período concreto sin tocar la ficha. Es
+justo la mezcla que se pidió: automático, pero no impuesto.
+
+Recalcular no vuelve a materializar: los movimientos ya están, y volver a
+insertarlos duplicaría el monto.
+
+### Vigencia, y por qué no se borra
+
+`vigente_desde` / `vigente_hasta` por la misma razón que todo lo demás en Nomix
+(`ADR-001`): estas asignaciones caducan —un descuento se termina de pagar, una
+dieta se aprueba por un semestre— y reabrir la planilla de marzo tiene que
+resolverse con lo que estaba pactado en marzo.
+
+Por eso el endpoint de baja **cierra con una fecha en vez de borrar**. Un
+DELETE reescribiría el pasado: recalcular una planilla anterior daría otro
+resultado y nada explicaría por qué.
+
+Un índice único parcial impide dos asignaciones **abiertas** del mismo concepto
+para el mismo colaborador. Sin él, la planilla materializaría las dos y
+duplicaría el monto sin que nadie lo notara; el historial ya cerrado sí puede
+tener varias, que es como se representa "le subieron la dieta en julio".
+
+### El XIII queda fuera, a propósito
+
+Una planilla de XIII no materializa nada: su base se reconstruye de lo ya
+percibido en la ventana de la partida (`ADR-015`), así que un movimiento ahí no
+se sumaría — se ignoraría. Repetir el error que este ADR viene a corregir.
+
+### Verificado
+
+Contra el entorno real: una asignación de B/. 250 de gastos de representación
+apareció sola en la planilla siguiente, entró como ingreso, **no** incidió en
+CSS y tributó por su régimen de ISR propio (`isr_retencion_gastos_representacion`
+= 25.00, separado del ordinario en 0.00) — es decir, la matriz de incidencia
+operó sobre un concepto inyectado automáticamente exactamente igual que sobre
+uno capturado a mano.
+
+
+---
+
+## ADR-022 — Documentos del colaborador: la fila en la base, el archivo en disco
+
+**Estado:** ✅ Aceptado · **Depende de:** `ADR-012`, `ADR-018`, `ADR-019`
+
+### La decisión de fondo
+
+El archivo va a **disco** y la base guarda solo su descripción. La alternativa
+—`bytea` en PostgreSQL— tiene a favor la consistencia transaccional y un único
+respaldo, pero un contrato escaneado por cada colaborador infla la base y con
+ella cada `pg_dump` y cada restauración PITR (`ADR-012`). Es decir, encarece
+justo la operación que uno necesita rápida y predecible el día que hace falta.
+
+El precio que se paga: el archivo puede quedar huérfano si algo falla entre la
+escritura y el commit. Se acepta a sabiendas, y se ordena la secuencia para que
+el fallo caiga del lado barato — **primero el archivo, después la fila**. Un
+archivo sin fila es basura recuperable; una fila sin archivo es una ficha que
+miente sobre lo que tiene.
+
+### El nombre del archivo NO es el que subió el usuario
+
+En disco, el archivo se llama como el UUID de su fila. El nombre original se
+guarda aparte y solo se usa para mostrarlo y para la cabecera de descarga.
+
+Usar el nombre del usuario como ruta es una travesía de directorios esperando a
+ocurrir (`../../etc/passwd`), y aun sin malicia hace que dos "contrato.pdf" se
+pisen. La ruta se construye con `resolve()` y se **verifica que caiga dentro**
+del directorio de almacén antes de tocar el disco: los identificadores ya vienen
+validados como UUID, pero un escape de la raíz es un fallo demasiado caro para
+confiarlo a una sola capa.
+
+Los tipos aceptados son una **lista blanca** (PDF, JPG, PNG, Word), no una lista
+negra: enumerar lo prohibido siempre deja algo fuera, y aquí el coste de
+equivocarse es guardar un ejecutable que alguien descargará creyendo que es un
+contrato. El tope de 15 MB se declara además en el plugin de multipart, para
+cortar el flujo mientras llega en vez de después de cargarlo entero en memoria.
+
+### La descarga pasa por la API, nunca por un servidor de estáticos
+
+Es lo que permite aplicar el RLS del inquilino y dejar rastro en la bitácora
+(`ADR-019`) en cada lectura. Servir esa carpeta con nginx entregaría el contrato
+de cualquier empresa a quien adivinara un UUID, sin registro de que ocurrió. Un
+contrato lleva el salario pactado: su lectura es exactamente el tipo de acceso
+que `ADR-007` se comprometió a auditar.
+
+La respuesta va como `attachment` y no `inline`, para que el navegador no
+renderice en el origen de la aplicación un archivo subido por un usuario.
+
+### Aquí sí se borra de verdad
+
+A diferencia de los conceptos fijos (`ADR-021`), que se cierran con fecha porque
+el pasado depende de ellos, un documento **se elimina**: no participa de ningún
+cálculo y ninguna planilla anterior cambia por su ausencia. Además, subir por
+error un documento personal equivocado debe poder deshacerse, no solo ocultarse.
+Si el archivo ya no estaba en disco, la fila se borra igual — el objetivo era
+que dejara de existir y se cumplió.
+
+### Dónde vive la carpeta
+
+`DOCUMENTOS_DIR`, con un default relativo que sirve para desarrollo y **no**
+para producción: cae dentro del repositorio, así que está en `.gitignore` para
+que un `git add -A` distraído no commitee cédulas reales. En el servidor debe
+apuntar a un directorio dentro del volumen que entra al respaldo; si no, los
+documentos no sobreviven a un redespliegue.
+
+
+---
+
 ## Hoja de ruta revisada
 
 La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y testing de motores legal/nómina") **ya no aplica tal cual**: no hay motores que extraer, y la base legal ya está hecha.
@@ -1100,6 +1241,8 @@ La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y t
 | 018 | Autorización por rol: verbos en las rutas, matriz en el código (`GAP-005`) | ✅ |
 | 019 | Bitácora de acceso inmutable — la contrapartida de `ADR-007` | ✅ |
 | 020 | La membresía vigente se comprueba en la base de datos (§5.4) | ✅ |
+| 021 | Conceptos fijos del colaborador materializados como movimientos | ✅ |
+| 022 | Documentos del colaborador: fila en la base, archivo en disco | ✅ |
 
 **No queda ninguna decisión de arquitectura abierta.** El detalle operativo está en
 [`ARCHITECTURE.md`](../../ARCHITECTURE.md).

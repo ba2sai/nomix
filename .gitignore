@@ -14,6 +14,12 @@ coverage/
 # Docker volumes locales
 docker/volumes/
 
+# Documentos subidos de colaboradores (ADR-022): contratos y cédulas reales.
+# Son datos personales; el default de DOCUMENTOS_DIR cae dentro del repo, así
+# que esta línea es lo que impide que un `git add -A` distraído los commitee.
+almacen/
+apps/api/almacen/
+
 # PII real de cuenta piloto - no commitear sin anonimizar
 reportes PFacil/
 

@@ -57,6 +57,20 @@
       "when": 1788048000000,
       "tag": "0007_acceso_auditoria",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788134400000,
+      "tag": "0008_colaborador_concepto",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788138000000,
+      "tag": "0009_documento_colaborador",
+      "breakpoints": true
     }
   ]
 }

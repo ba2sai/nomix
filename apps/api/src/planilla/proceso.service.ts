@@ -23,6 +23,7 @@ import {
 import { DB } from '../db/db.module.js';
 import type { DbHandle } from '../db/client.js';
 import { withContext, type TenantTx } from '../db/tenant.js';
+import { materializarConceptosFijos } from '../colaborador/concepto-fijo.service.js';
 import { resolverTasa } from '../rules/rule-resolver.js';
 import { cargarCatalogo } from '../concepto/concepto.service.js';
 import {
@@ -64,6 +65,30 @@ export class ProcesoService {
           estado: 'borrador',
         })
         .returning();
+      if (!p) throw new Error('No se pudo crear la planilla.');
+
+      /**
+       * Los conceptos fijos de la ficha entran AQUÍ, como movimientos del
+       * período (`ADR-021`), no en el cálculo.
+       *
+       * Materializarlos al crear y no al calcular es lo que los hace
+       * revisables: aparecen en el panel de movimientos antes de producir
+       * ninguna cifra, y el operador puede ajustarlos o quitarlos en este
+       * período sin tocar la ficha del colaborador.
+       *
+       * El XIII se queda fuera a propósito: su base se reconstruye de lo ya
+       * percibido en la ventana de la partida (`ADR-015`), así que un
+       * movimiento ahí no se sumaría — se ignoraría, que es peor.
+       */
+      if (dto.tipo !== TIPO_PLANILLA_XIII) {
+        await materializarConceptosFijos(
+          tx,
+          ctx.empresaId,
+          p.id,
+          dto.periodoHasta,
+          ctx.usuarioId,
+        );
+      }
       return p;
     });
   }
