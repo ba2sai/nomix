@@ -129,6 +129,14 @@ export const concepto = pgTable(
     incidePromedioVacaciones: boolean('incide_promedio_vacaciones').notNull(),
     incideBaseLiquidacion: boolean('incide_base_liquidacion').notNull(),
     esInembargable: boolean('es_inembargable').notNull(),
+    /**
+     * Régimen del descuento frente a los topes del Art. 161 (ADR-004):
+     * `pension_alimenticia` (exenta del tope global) | `vivienda` (tope propio
+     * del 30%) | `ordinario` (sujeto al 50%). NULL en todo lo que no es un
+     * descuento de acreedor — incluidas las retenciones de ley, que no compiten
+     * por la capacidad del 50%.
+     */
+    categoriaDescuento: text('categoria_descuento'),
     /** Artículo/ley que sustenta la incidencia. Alimenta la traza (ADR-005). */
     baseLegal: text('base_legal').notNull(),
     /** verificado | verificar | pendiente — mismo vocabulario que `regla`. */
@@ -190,6 +198,15 @@ export const colaborador = pgTable(
     // Paso 5 — Retenciones
     declaraRenta: boolean('declara_renta').notNull().default(false),
     gastoRep: numeric('gasto_rep', { precision: 18, scale: 6 }),
+    /**
+     * Aguinaldo o bonificación de Navidad pactada o acostumbrada de manera
+     * reiterada (Decreto 19 de 1973 Art. 3º). Compite con la 3ª partida del
+     * XIII y se paga la suma más favorable al trabajador. Solo se lee cuando
+     * `empresa.paga_aguinaldo_acostumbrado` está encendido: las dos columnas
+     * son la misma regla, una por el lado de la empresa y otra por el del
+     * colaborador. `null` = este colaborador no tiene aguinaldo pactado.
+     */
+    montoAguinaldo: numeric('monto_aguinaldo', { precision: 18, scale: 6 }),
     status: text('status').notNull().default('activo'), // activo | vacaciones | licencia | suspendido | cesante
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
     actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),

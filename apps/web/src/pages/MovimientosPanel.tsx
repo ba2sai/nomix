@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, type CrearMovimiento } from '../lib/api';
+import { api, type CicloVacaciones, type CrearMovimiento } from '../lib/api';
 import { Boton, Campo, Selector, Tarjeta } from '../components/ui';
 
 /**
@@ -38,6 +38,7 @@ export function MovimientosPanel({
   const [conceptoCodigo, setConceptoCodigo] = useState('');
   const [valor, setValor] = useState('');
   const [nota, setNota] = useState('');
+  const [ciclo, setCiclo] = useState<CicloVacaciones | null>(null);
 
   const refrescar = async () => {
     await qc.invalidateQueries({ queryKey: ['movimientos', planillaId] });
@@ -54,6 +55,13 @@ export function MovimientosPanel({
   const eliminar = useMutation({
     mutationFn: (movId: string) => api.eliminarMovimiento(planillaId, movId),
     onSuccess: refrescar,
+  });
+  const calcularVacaciones = useMutation({
+    mutationFn: () => api.calcularVacaciones(planillaId, colaboradorId),
+    onSuccess: (r) => {
+      setCiclo(r);
+      setValor(r.linea.monto);
+    },
   });
 
   // Solo se capturan ingresos y deducciones; los aportes patronales los produce
@@ -98,6 +106,7 @@ export function MovimientosPanel({
           value={colaboradorId}
           onChange={(e) => {
             setColaboradorId(e.target.value);
+            setCiclo(null);
           }}
         >
           <option value="">Selecciona…</option>
@@ -114,6 +123,7 @@ export function MovimientosPanel({
           onChange={(e) => {
             setConceptoCodigo(e.target.value);
             setValor('');
+            setCiclo(null);
           }}
         >
           <option value="">Selecciona…</option>
@@ -146,7 +156,18 @@ export function MovimientosPanel({
           }}
         />
 
-        <div className="flex items-end">
+        <div className="flex items-end gap-2">
+          {conceptoCodigo === 'vacaciones_pagadas' && (
+            <Boton
+              variante="secundario"
+              onClick={() => {
+                calcularVacaciones.mutate();
+              }}
+              disabled={!colaboradorId || calcularVacaciones.isPending}
+            >
+              {calcularVacaciones.isPending ? 'Calculando…' : 'Calcular automático'}
+            </Boton>
+          )}
           <Boton
             onClick={() => {
               enviar();
@@ -157,6 +178,28 @@ export function MovimientosPanel({
           </Boton>
         </div>
       </div>
+
+      {/* Ayuda de cálculo (ADR-016): sugiere el monto reconstruyendo el ciclo
+          del colaborador desde su histórico. El usuario decide si lo usa. */}
+      {conceptoCodigo === 'vacaciones_pagadas' && calcularVacaciones.error && (
+        <p className="mt-2 text-sm text-red-600">
+          {(calcularVacaciones.error as Error).message}
+        </p>
+      )}
+      {ciclo && conceptoCodigo === 'vacaciones_pagadas' && (
+        <div className="mt-3 rounded-xl border border-marca-200 bg-marca-50 p-3 text-sm text-slate-700">
+          Ciclo del <b>{ciclo.ventanaDesde}</b> al <b>{ciclo.ventanaHasta}</b> — {ciclo.diasAcumulados}{' '}
+          días acumulados{ciclo.cicloCompleto ? ' (ciclo completo)' : ' (ciclo parcial)'}. Monto
+          sugerido: <b>B/. {ciclo.linea.monto}</b>.
+          {ciclo.advertencias.length > 0 && (
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-amber-700">
+              {ciclo.advertencias.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {seleccionado && (
         <p className="mt-2 text-xs text-slate-400">

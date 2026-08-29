@@ -138,6 +138,20 @@ export class PlanillaController {
     return this.movimientos.crear(this.ctx(s), id, p.data);
   }
 
+  /**
+   * Ayuda de cálculo (ADR-016): monto sugerido para el próximo pago de
+   * vacaciones de este colaborador. No persiste nada — el frontend prellena
+   * el formulario de movimiento con la respuesta y el usuario confirma.
+   */
+  @Get(':id/vacaciones/:colaboradorId')
+  async calcularVacaciones(
+    @Param('id') id: string,
+    @Param('colaboradorId') colaboradorId: string,
+    @Sesion() s: SesionData,
+  ): Promise<unknown> {
+    return this.movimientos.calcularVacaciones(this.ctx(s), id, colaboradorId);
+  }
+
   @Delete(':id/movimientos/:movId')
   async eliminarMovimiento(
     @Param('id') id: string,

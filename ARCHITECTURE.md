@@ -161,8 +161,9 @@ planilla_traza    ( detalle_id, regla_codigo, regla_version,
 `planilla_traza` alimenta la auditoría legal **y** el *Inspection Drawer* del producto.
 Hereda la clasificación de sensibilidad de `salario_base`.
 
-> ⏸️ **La máquina de estados de la planilla sigue sin definir.** Es el siguiente
-> entregable de arquitectura y de ella depende el Factor WOW #1.
+> ✅ **Máquina de estados de la planilla:** `borrador → calculada → aprobada →
+> cerrada`, en `apps/api/src/planilla/estado.ts`. Se recalcula mientras no esté
+> aprobada; al cerrar queda inmutable y emite `PlanillaCerrada` (`ADR-013`).
 
 ### 4.4 Precisión numérica (`ADR-006`)
 
@@ -300,11 +301,12 @@ semana previa al 15 de abril, 15 de agosto y 15 de diciembre (partidas del XIII)
 | 3 | `packages/rules` — resolución temporal | backend-nomina | 🔓 |
 | 4 | Catálogo de conceptos + siembra desde la base legal | backend-nomina | ✅ 32 conceptos |
 | 5 | `packages/payroll-engine` — CSS, SE, ISR, recargos | backend-nomina | ✅ CSS/SE/RP + recargos, devengo, ISR acumulativo (`ADR-014`) |
-| 6 | Asignación de descuentos (`ADR-004`) | backend-nomina | 🔓 `es_inembargable` ya viaja en el catálogo |
+| 6 | Asignación de descuentos (`ADR-004`) | backend-nomina | ✅ Topes del Art. 161 con arrastre de saldos |
 | 7 | Auth + membresía + RLS | seguridad-datos | ✅ |
 | 8 | Máquina de estados de planilla | arquitecto-soluciones | ✅ borrador→calculada→aprobada→cerrada |
 | 9 | API + shell de UI | backend + frontend | ✅ base |
 | 10 | Exportadores ACH / SIPE / DGI | backend-nomina | 🟡 Tras el paso 0 |
+| 11 | Prestaciones: XIII Mes, vacaciones, liquidaciones | backend-nomina | ✅ XIII (`ADR-015`), Vacaciones (`ADR-016`), Liquidación (`ADR-017`) |
 
 ### El paso 0 vale más que cualquier decisión técnica
 
@@ -328,6 +330,13 @@ Eso convierte los dos únicos bloqueantes externos del proyecto en trabajo norma
 | 2026-08-26 | Versión inicial. Cierra `ADR-010`, `ADR-011`, `ADR-012` |
 | 2026-08-28 | Pasos 4 y 8 completos. El motor se dirige por el catálogo de conceptos (`ADR-002`): `acumularBases` decide las bases por los flags de incidencia, no por el código del concepto. Nueva tabla `movimiento` (devengado del período) con su RLS. Prorrateo configurable por empresa (`empresa.metodo_prorrateo`). |
 | 2026-08-28 | ISR implementado con método acumulativo (`ADR-014`). Dos flujos paralelos (ordinario / gastos de representación), cada uno con su propia escala de tramos resuelta por vigencia (`resolverTramos`). El acumulado del año se reconstruye sumando la columna `base` de líneas `isr_retencion` de períodos anteriores — sin guardar una cifra "acumulada" aparte que se desincronizaría al recalcular. |
+
+| 2026-08-28 | Décimo Tercer Mes (`ADR-015`). Es un TIPO de planilla, no un concepto: la partida se reconstruye sumando las líneas de `planilla_detalle` de la ventana que fija el Decreto 221, y vuelve a pasar por la matriz de incidencia para sus retenciones (CSS 7.25%, SE 0%, ISR ordinario). El ciclo de partidas y el divisor viven en `regla` (`partidas_xiii`, `divisor_xiii`). Nueva columna `colaborador.monto_aguinaldo` para la regla del Art. 3º. La cuota patronal sigue sin determinar (consulta A7) y la planilla lo declara en vez de estimarla. |
+
+| 2026-08-28 | Vacaciones (`ADR-016`). No es un tipo de planilla ni un workflow con tabla propia: es una ayuda de cálculo (`GET /planillas/:id/vacaciones/:colaboradorId`) que reconstruye el ciclo del colaborador desde el histórico de `planilla_detalle` — igual principio que el XIII, pero el ciclo es por colaborador (ancla en `fecha_ingreso`), no un calendario compartido. `monto = Σ(salarios del ciclo) ÷ 11`, con `divisor_vacaciones` sembrado en `verificar` porque su equivalencia con `divisor_salario_diario` (330 días) hereda la incertidumbre de ese divisor, marcado `pendiente`. |
+
+| 2026-08-29 | Asignación de descuentos (`ADR-004` implementado). Los topes del Art. 161 se resuelven como un problema de asignación, no como restas encadenadas: pensión alimenticia exenta, vivienda con tope propio del 30%, ordinarios por prelación hasta agotar el 50%, y lo que no cupo se declara como saldo arrastrado. El régimen de cada descuento es un dato del catálogo (`concepto.categoria_descuento`, migración 0006). El piso de salario mínimo no se verifica todavía y cada planilla lo declara. |
+| 2026-08-29 | Liquidación laboral (`ADR-017`). `POST /colaboradores/:id/liquidacion` es una propuesta de SOLO LECTURA, separada de la baja: prima de antigüedad (Art. 224, cualquiera sea la causa), indemnización (Art. 225, solo despido injustificado o renuncia justificada, escala recorrida por tramos) y preaviso (Art. 212/222, decidido por RRHH y no inferido). La escala vive en `regla` con la vigencia de la Ley 44 de 1995. Discrepancia declarada de 12 centavos contra el ejemplo de la base legal §8.3, que redondea el semanal intermedio y `ADR-006` no (consulta F4). |
 
 > Todo cambio de arquitectura se registra **primero** como ADR en
 > `docs/nomix/08_decisiones_arquitectura.md`, y después se refleja aquí.

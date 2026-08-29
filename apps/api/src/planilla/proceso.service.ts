@@ -12,6 +12,9 @@ import {
   devengarSalarioBase,
   devengarHoras,
   devengarDias,
+  calcularPartidaXiii,
+  asignarDescuentos,
+  type DescuentoSolicitado,
   type CatalogoConceptos,
   type LineaCalculada,
   type LineaDevengada,
@@ -22,6 +25,13 @@ import type { DbHandle } from '../db/client.js';
 import { withContext, type TenantTx } from '../db/tenant.js';
 import { resolverTasa } from '../rules/rule-resolver.js';
 import { cargarCatalogo } from '../concepto/concepto.service.js';
+import {
+  TIPO_PLANILLA_XIII,
+  acumularVentana,
+  resolverCicloXiii,
+  ventanaDePago,
+} from './decimo.js';
+import { resolverTopesDescuento } from './descuentos.js';
 import { resolverTasasSS } from './tasas.js';
 import { resolverParametrosDevengo } from './devengo-params.js';
 import { puedeTransicionar } from './estado.js';
@@ -120,8 +130,17 @@ export class ProcesoService {
 
       const fecha = cab.periodoHasta;
       const catalogo = await cargarCatalogo(tx, fecha);
+
+      // El XIII no se devenga: se reconstruye de lo ya percibido en la ventana
+      // de su partida. Es otro proceso, no otro concepto — por eso la rama está
+      // en el TIPO de planilla y no dentro del bucle de conceptos (ADR-002).
+      if (cab.tipo === TIPO_PLANILLA_XIII) {
+        return this.calcularPartidaDecimo(tx, ctx, cab, catalogo);
+      }
+
       const tasas = await resolverTasasSS(tx, fecha);
       const params = await resolverParametrosDevengo(tx, cab.tipo, fecha);
+      const topes = await resolverTopesDescuento(tx, fecha);
       const periodo = { desde: cab.periodoDesde, hasta: cab.periodoHasta };
 
       const colabs = await tx
@@ -143,7 +162,13 @@ export class ProcesoService {
       let totObrero = Money.ZERO;
       let totPatronal = Money.ZERO;
       let totIsr = Money.ZERO;
+      let totDescuentos = Money.ZERO;
+      let totArrastrado = Money.ZERO;
       const pendientes = new Set<string>();
+      // Los hallazgos del Art. 161 se deduplican: "no se verificó el piso de
+      // salario mínimo" es el mismo hecho para toda la planilla, no uno por
+      // colaborador.
+      const advertencias = new Set<string>();
 
       for (const c of colabs) {
         const salario = Money.of(c.salarioMensual);
@@ -151,14 +176,34 @@ export class ProcesoService {
         // 1. Devengar: salario prorrateado + movimientos del período. La
         //    cantidad de origen viaja con su línea para no perderse cuando un
         //    colaborador tiene varios movimientos del mismo concepto.
+        //
+        //    Los descuentos de ACREEDOR se apartan aquí: no se devengan y se
+        //    persisten como el resto, porque su monto final no lo decide quien
+        //    los capturó sino los topes del Art. 161 (ADR-004). Cuál es de
+        //    acreedor lo dice el catálogo (`categoria_descuento`), no el código.
+        const movimientos = movsPorColab.get(c.id) ?? [];
+        const solicitudes: DescuentoSolicitado[] = [];
         const devengadas: Array<{ linea: LineaCalculada; cantidad: string | null }> = [
           { linea: devengarSalarioBase(salario, periodo, params), cantidad: null },
         ];
-        for (const m of movsPorColab.get(c.id) ?? []) {
-          devengadas.push({
-            linea: await this.devengarMovimiento(tx, m, salario, catalogo, params, fecha),
-            cantidad: m.cantidad,
-          });
+        for (const m of movimientos) {
+          const linea = await this.devengarMovimiento(tx, m, salario, catalogo, params, fecha);
+          const categoria = catalogo.get(m.conceptoCodigo).categoriaDescuento;
+          if (categoria === null) {
+            devengadas.push({ linea, cantidad: m.cantidad });
+          } else {
+            solicitudes.push({
+              conceptoCodigo: m.conceptoCodigo,
+              categoria,
+              montoSolicitado: linea.monto,
+              // Prelación por antigüedad de la orden (consulta E1 abierta): a
+              // falta de una fecha de orden en el modelo, la captura del
+              // movimiento es lo más cercano y es auditable. Se usa la marca
+              // completa, no solo la fecha: dos capturas del mismo día tienen
+              // un orden real, y de él depende quién cobra si el 50% no alcanza.
+              desde: m.creadoEn.toISOString(),
+            });
+          }
         }
 
         // 2. Acumular bases según la matriz de incidencia.
@@ -193,9 +238,53 @@ export class ProcesoService {
           bases.isr.gastosRepresentacion,
         );
 
+        // 3c. Descuentos de acreedor — asignación con restricciones (ADR-004).
+        // El tope del 50% se mide sobre el devengado en dinero, del que se
+        // aparta lo inembargable en cuantía completa (vacaciones,
+        // indemnizaciones — Art. 161). Qué es inembargable lo declara el
+        // catálogo, no este método.
+        const bruto = devengadas.reduce(
+          (acc, d) => (catalogo.get(d.linea.concepto).tipo === 'ingreso' ? acc.plus(d.linea.monto) : acc),
+          Money.ZERO,
+        );
+        const inembargable = devengadas.reduce((acc, d) => {
+          const co = catalogo.get(d.linea.concepto);
+          return co.tipo === 'ingreso' && co.esInembargable ? acc.plus(d.linea.monto) : acc;
+        }, Money.ZERO);
+        const asignacion = asignarDescuentos({
+          salarioEnDinero: bruto,
+          montoInembargable: inembargable,
+          // La tabla de 59 tasas del D.E. 13 de 2025 no está cargada todavía,
+          // así que el piso del Art. 161 no se verifica y el motor lo declara.
+          pisoSalarioMinimo: null,
+          topes,
+          solicitados: solicitudes,
+        });
+        for (const a of asignacion.advertencias) advertencias.add(a);
+
         // 4. Persistir: cada línea con su traza (ADR-005).
         for (const d of devengadas) {
           await this.persistir(tx, ctx, id, c.id, d.linea, catalogo, d.cantidad);
+        }
+        // Los descuentos van con el monto ASIGNADO, no el solicitado, y su
+        // traza guarda por qué quedó así.
+        for (const a of asignacion.asignados) {
+          if (a.montoAplicado.isZero()) continue;
+          await this.persistir(
+            tx,
+            ctx,
+            id,
+            c.id,
+            {
+              concepto: a.conceptoCodigo,
+              base: bruto,
+              tasa: Rate.of('1'),
+              monto: a.montoAplicado,
+              baseLegal: `${catalogo.get(a.conceptoCodigo).baseLegal} — asignación: ${a.razon}`,
+            },
+            catalogo,
+            null,
+          );
         }
         for (const l of [
           r.cssObrero,
@@ -211,11 +300,16 @@ export class ProcesoService {
 
         const brutoColab = devengadas.reduce((acc, d) => acc.plus(d.linea.monto), Money.ZERO);
         const isrColab = isrLineas.reduce((acc, l) => acc.plus(l.monto), Money.ZERO);
-        const obreroColab = especiales.reduce((acc, l) => acc.plus(l.monto), r.totalObrero).plus(isrColab);
+        const obreroColab = especiales
+          .reduce((acc, l) => acc.plus(l.monto), r.totalObrero)
+          .plus(isrColab)
+          .plus(asignacion.totalAplicado);
         totBruto = totBruto.plus(brutoColab);
         totObrero = totObrero.plus(obreroColab);
         totPatronal = totPatronal.plus(r.totalPatronal);
         totIsr = totIsr.plus(isrColab);
+        totDescuentos = totDescuentos.plus(asignacion.totalAplicado);
+        totArrastrado = totArrastrado.plus(asignacion.totalArrastrado);
       }
 
       const totales = {
@@ -234,6 +328,18 @@ export class ProcesoService {
         // Honestidad sobre el estado de la investigación legal: qué conceptos
         // participaron con una incidencia que todavía nadie confirmó.
         conceptosPendientes: [...pendientes].sort(),
+        advertencias: [...advertencias],
+        // Asignación de descuentos con restricciones (ADR-004, Art. 161).
+        descuentos: {
+          aplicado: totDescuentos.toFixed2(),
+          arrastrado: totArrastrado.toFixed2(),
+          nota:
+            'Los descuentos de acreedor se asignan con los topes del Art. 161 (50% global, 30% ' +
+            'vivienda, pensión alimenticia exenta) y no se restan uno a uno. Lo que no cupo ' +
+            'queda como saldo arrastrado y NO se aplica solo al período siguiente: la consulta ' +
+            'E5 sigue abierta. El orden entre acreedores ordinarios es por antigüedad de la ' +
+            'orden (consulta E1, decisión de producto).',
+        },
         isr: {
           metodo: 'acumulativo',
           retenido: totIsr.toFixed2(),
@@ -252,6 +358,169 @@ export class ProcesoService {
         .returning();
       return p;
     });
+  }
+
+  /**
+   * Calcula una partida del Décimo Tercer Mes (base legal §3, Decreto 19 de 1973).
+   *
+   * A diferencia de la planilla ordinaria, aquí no hay devengo: la partida sale
+   * de lo que el trabajador YA percibió en la ventana de cuatro meses, releído
+   * de las líneas de planilla persistidas. Un colaborador que entró a mitad del
+   * período acumula menos por construcción, así que el tiempo de servicio del
+   * Art. 2º del Decreto 221 no necesita prorrateo aparte.
+   *
+   * Las retenciones no se calculan aquí: la partida se emite como una línea del
+   * concepto `xiii_mes` y se deja que `acumularBases` decida qué le aplica. El
+   * catálogo ya declara que cotiza CSS al 7.25%, que NO cotiza Seguro Educativo
+   * y que grava ISR por el régimen ordinario — el mismo camino que cualquier
+   * otro concepto (ADR-002).
+   */
+  private async calcularPartidaDecimo(
+    tx: TenantTx,
+    ctx: Ctx,
+    cab: typeof schema.planillaCabecera.$inferSelect,
+    catalogo: CatalogoConceptos,
+  ): Promise<unknown> {
+    const fecha = cab.periodoHasta;
+    const ciclo = await resolverCicloXiii(tx, fecha);
+    const ventana = ventanaDePago(fecha, ciclo);
+    const [emp] = await tx.select().from(schema.empresa);
+    if (!emp) throw new Error('No hay empresa activa en el contexto de la transacción.');
+
+    const basesPorColaborador = await acumularVentana(tx, ventana, cab.id, catalogo);
+    const colabs = await tx.select().from(schema.colaborador);
+    const porId = new Map(colabs.map((c) => [c.id, c]));
+
+    let totBruto = Money.ZERO;
+    let totObrero = Money.ZERO;
+    let totIsr = Money.ZERO;
+    let pagados = 0;
+    const pendientes = new Set<string>();
+    const advertencias: string[] = [];
+
+    // El período declarado en la cabecera no manda: la ventana la fija el
+    // Decreto. Si el usuario escribió otras fechas, se calcula bien y se avisa.
+    if (cab.periodoDesde !== ventana.desde || cab.periodoHasta !== ventana.hasta) {
+      advertencias.push(
+        `El período declarado (${cab.periodoDesde} → ${cab.periodoHasta}) no coincide con la ` +
+          `ventana legal de la ${String(ventana.numero)}ª partida (${ventana.desde} → ` +
+          `${ventana.hasta}). Se acumuló sobre la ventana legal.`,
+      );
+    }
+
+    // Se recorre a quien acumuló algo, no a los colaboradores "activos": un
+    // trabajador que salió a mitad del período igual generó su partida.
+    for (const [colaboradorId, basesVentana] of basesPorColaborador) {
+      const colab = porId.get(colaboradorId);
+      // Sin base positiva no hay partida: un colaborador cuya única línea en la
+      // ventana fue una ausencia no genera un XIII negativo.
+      if (!colab || basesVentana.xiii.isZero() || basesVentana.xiii.isNegative()) continue;
+      for (const c of basesVentana.conceptosPendientes) pendientes.add(c);
+
+      // Art. 3º: el aguinaldo acostumbrado solo entra si la empresa lo tiene
+      // pactado Y el colaborador tiene monto, y solo en la última partida.
+      const aguinaldo =
+        emp.pagaAguinaldoAcostumbrado &&
+        colab.montoAguinaldo !== null &&
+        ventana.numero === ciclo.ultimaPartida
+          ? Money.of(colab.montoAguinaldo)
+          : null;
+
+      const r = calcularPartidaXiii({
+        salariosDelPeriodo: basesVentana.xiii,
+        divisor: ciclo.divisor,
+        divisorGeneral: ciclo.divisorGeneral,
+        aguinaldoAcostumbrado: aguinaldo,
+        partida: ventana,
+        ultimaPartida: ciclo.ultimaPartida,
+        concepto: 'xiii_mes',
+        baseLegal: catalogo.get('xiii_mes').baseLegal,
+      });
+      for (const a of r.advertencias) {
+        advertencias.push(`${colab.nombres} ${colab.apellidos}: ${a}`);
+      }
+
+      // La partida vuelve a pasar por la matriz de incidencia: es el catálogo,
+      // no este método, quien sabe que el XIII cotiza al 7.25% y no paga SE.
+      const basesPartida = acumularBases(
+        [{ conceptoCodigo: 'xiii_mes', monto: r.linea.monto }],
+        catalogo,
+      );
+      const especiales = gruposCssEspeciales(basesPartida).map((g) =>
+        calcularCssTasaEspecial(
+          'css_obrero_tasa_especial',
+          g.base,
+          g.tasaEspecial,
+          'Ley Orgánica CSS Art. 101 num. 5; base legal §3.3 — cuota obrera 7.25% sobre el XIII',
+        ),
+      );
+      // El XIII entra al MISMO acumulador anual de ISR que el salario. Bajo el
+      // método acumulativo (ADR-014) eso no produce doble gravamen: no hay
+      // proyección "× 13" que ya lo contuviera, solo bases realmente percibidas.
+      const isrLineas = await calcularRetencionesIsr(
+        tx,
+        colaboradorId,
+        cab.id,
+        fecha,
+        basesPartida.isr.ordinario,
+        basesPartida.isr.gastosRepresentacion,
+      );
+
+      for (const l of [r.linea, ...especiales, ...isrLineas]) {
+        await this.persistir(tx, ctx, cab.id, colaboradorId, l, catalogo, null);
+      }
+
+      const isrColab = isrLineas.reduce((acc, l) => acc.plus(l.monto), Money.ZERO);
+      const obreroColab = especiales.reduce((acc, l) => acc.plus(l.monto), Money.ZERO).plus(isrColab);
+      totBruto = totBruto.plus(r.linea.monto);
+      totObrero = totObrero.plus(obreroColab);
+      totIsr = totIsr.plus(isrColab);
+      pagados += 1;
+    }
+
+    const totales = {
+      tipo: TIPO_PLANILLA_XIII,
+      colaboradores: pagados,
+      bruto: totBruto.toFixed2(),
+      deduccionesObrero: totObrero.toFixed2(),
+      neto: totBruto.minus(totObrero).toFixed2(),
+      // Sin cuota patronal determinada no hay costo del empleador que reportar.
+      // Poner el bruto ahí lo haría parecer completo, y no lo está.
+      cargasPatronales: null,
+      costoEmpleador: null,
+      partida: {
+        numero: ventana.numero,
+        ventanaDesde: ventana.desde,
+        ventanaHasta: ventana.hasta,
+        divisor: ciclo.divisor,
+        baseLegal: 'Decreto de Gabinete 221 de 1971; Decreto 19 de 1973 Art. 3º y 4º',
+      },
+      advertencias,
+      conceptosPendientes: [...pendientes].sort(),
+      isr: {
+        metodo: 'acumulativo',
+        retenido: totIsr.toFixed2(),
+        nota:
+          'El XIII se suma al mismo acumulado anual que el salario (ADR-014). Bajo el método ' +
+          'acumulativo no hay doble gravamen: no existe la proyección «× 13» que ya lo incluía, ' +
+          'solo bases efectivamente percibidas.',
+      },
+      cuotaPatronal: {
+        estado: 'no_calculada',
+        nota:
+          'La cuota PATRONAL sobre el XIII Mes no está determinada (base legal §3.3, consulta A7 ' +
+          'abierta): el Decreto 221 lo excluía de las cuotas obrero-patronales salvo el impuesto ' +
+          'sobre la renta, pero la práctica sí aplica el 7.25% obrero. Nomix retiene la cuota ' +
+          'obrera, que sí está verificada, y no inventa la patronal.',
+      },
+    };
+
+    const [p] = await tx
+      .update(schema.planillaCabecera)
+      .set({ estado: 'calculada', totales, calculadaEn: new Date() })
+      .where(eq(schema.planillaCabecera.id, cab.id))
+      .returning();
+    return p;
   }
 
   /**

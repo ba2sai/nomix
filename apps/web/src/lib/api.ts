@@ -97,16 +97,28 @@ export interface Planilla {
     colaboradores?: number;
     bruto?: string;
     deduccionesObrero?: string;
-    cargasPatronales?: string;
+    cargasPatronales?: string | null;
     netoAntesIsr?: string;
     /** Bruto - deducciones obrero, YA con el ISR retenido descontado. */
     neto?: string;
-    costoEmpleador?: string;
+    costoEmpleador?: string | null;
     prorrateo?: string;
     /** Conceptos cuya incidencia todavia no esta verificada (ADR-002). */
     conceptosPendientes?: string[];
     /** Metodo de retencion de ISR y sus supuestos declarados (ADR-014). */
     isr?: { metodo: string; retenido: string; nota: string };
+    /** Solo en planillas de XIII Mes: que partida se pago y sobre que ventana. */
+    partida?: {
+      numero: number;
+      ventanaDesde: string;
+      ventanaHasta: string;
+      divisor: string;
+      baseLegal: string;
+    };
+    /** Hallazgos que el usuario tiene que ver (aguinaldo aplicado, ventana distinta). */
+    advertencias?: string[];
+    /** Huecos declarados del calculo, como la cuota patronal sobre el XIII. */
+    cuotaPatronal?: { estado: string; nota: string };
   } | null;
 }
 export interface PlanillaLinea {
@@ -150,6 +162,16 @@ export interface Movimiento {
   nota: string | null;
   origen: string;
 }
+/** Respuesta de la ayuda de cálculo de vacaciones (ADR-016). */
+export interface CicloVacaciones {
+  diasAcumulados: string;
+  cicloCompleto: boolean;
+  ventanaDesde: string;
+  ventanaHasta: string;
+  advertencias: string[];
+  linea: PreviewLinea;
+}
+
 export interface CrearMovimiento {
   colaboradorId: string;
   conceptoCodigo: string;
@@ -190,4 +212,6 @@ export const api = {
     req<Movimiento>('POST', `/planillas/${planillaId}/movimientos`, dto),
   eliminarMovimiento: (planillaId: string, movId: string) =>
     req<{ ok: true }>('DELETE', `/planillas/${planillaId}/movimientos/${movId}`),
+  calcularVacaciones: (planillaId: string, colaboradorId: string) =>
+    req<CicloVacaciones>('GET', `/planillas/${planillaId}/vacaciones/${colaboradorId}`),
 };

@@ -32,6 +32,8 @@ interface FilaConcepto {
   vacaciones: boolean;
   liquidacion: boolean;
   inembargable: boolean;
+  /** Régimen frente a los topes del Art. 161 (ADR-004). null = no es descuento de acreedor. */
+  categoriaDescuento?: 'pension_alimenticia' | 'vivienda' | 'ordinario' | undefined;
   baseLegal: string;
   confianza: 'verificado' | 'verificar' | 'pendiente';
 }
@@ -254,6 +256,7 @@ const CONCEPTOS: FilaConcepto[] = [
     codigo: 'adelanto', nombre: 'Adelanto de salario', tipo: 'deduccion', unidad: 'monto',
     ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
     xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    categoriaDescuento: 'ordinario',
     baseLegal: 'Código de Trabajo Art. 161 — sujeto al tope global del 50%',
     confianza: 'verificado',
   },
@@ -261,6 +264,7 @@ const CONCEPTOS: FilaConcepto[] = [
     codigo: 'prestamo', nombre: 'Descuento por préstamo', tipo: 'deduccion', unidad: 'monto',
     ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
     xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    categoriaDescuento: 'ordinario',
     baseLegal: 'Código de Trabajo Art. 161 — sujeto al tope global del 50%',
     confianza: 'verificado',
   },
@@ -272,7 +276,18 @@ const CONCEPTOS: FilaConcepto[] = [
     // alimenticia es una deducción exenta del tope del 50%, que es otra cosa:
     // se modela con el algoritmo de asignación restringida del ADR-004.
     inembargable: false,
+    categoriaDescuento: 'pension_alimenticia',
     baseLegal: 'Código de Trabajo Art. 161 — exenta del tope del 50% (ver ADR-004)',
+    confianza: 'verificado',
+  },
+
+  {
+    codigo: 'cuota_vivienda', nombre: 'Cuota de compra de vivienda', tipo: 'deduccion', unidad: 'monto',
+    ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    // El único descuento con tope PROPIO además del global (Art. 161).
+    categoriaDescuento: 'vivienda',
+    baseLegal: 'Código de Trabajo Art. 161 — cuotas por compra de vivienda, tope 30% (ADR-004)',
     confianza: 'verificado',
   },
 
@@ -323,6 +338,34 @@ const REGLAS_DEVENGO: ReadonlyArray<{
   // ❓ PENDIENTE (base legal §12.1): ¿/30, /días del mes, o ×12/365? Se siembra
   // /30 como supuesto declarado. Corregirlo es un INSERT con nueva vigencia.
   { codigo: 'divisor_salario_diario', valor: '30', desde: '1972-01-01', baseLegal: 'Convención de mercado — base legal §12.1 marca el divisor como PENDIENTE', confianza: 'pendiente' },
+  // El divisor del XIII es 12 aunque cada partida cubra 4 meses: es la fracción
+  // anual de un mes de salario repartida en tres pagos (base legal §3.2,
+  // confirmado por dos vías). Va en `regla` y no cableado para que un convenio
+  // colectivo pueda sobrescribirlo — solo a favor del trabajador, Art. 5º.
+  { codigo: 'divisor_xiii', valor: '12', desde: '1972-01-01', baseLegal: 'Decreto de Gabinete 221 de 1971; Decreto 19 de 1973 Art. 4º', confianza: 'verificado' },
+  // Art. 54: "30 días por cada 11 meses" ≡ "1 día por cada 11 días trabajados"
+  // (consulta B4, base legal §6) SOLO bajo la convención de mes de 30 días que
+  // ya usa `divisor_salario_diario` — que está en 'pendiente'. Este valor
+  // hereda esa incertidumbre: se declara 'verificar', no 'verificado' (ADR-016).
+  { codigo: 'tope_descuento_global', valor: '0.50', desde: '1972-01-01', baseLegal: 'Código de Trabajo Art. 161 — tope global del 50% del salario en dinero', confianza: 'verificado' },
+  { codigo: 'tope_descuento_vivienda', valor: '0.30', desde: '1972-01-01', baseLegal: 'Código de Trabajo Art. 161 — cuotas de compra de vivienda', confianza: 'verificado' },
+  // Divisor semanal para prima e indemnización. La consulta D2.c pide confirmar
+  // que 4.333 sea el aceptado ante MITRADEL: se siembra como 'verificar'.
+  { codigo: 'divisor_salario_semanal', valor: '4.333', desde: '1972-01-01', baseLegal: 'Convención de mercado — consulta D2.c sin responder', confianza: 'verificar' },
+  { codigo: 'semanas_prima_antiguedad', valor: '1', desde: '1972-01-01', baseLegal: 'Código de Trabajo Art. 224 — 1 semana por año laborado', confianza: 'verificado' },
+  { codigo: 'semanas_minimas_indemnizacion', valor: '1', desde: '1995-08-12', baseLegal: 'Código de Trabajo Art. 225 (Ley 44 de 1995) — mínimo absoluto', confianza: 'verificado' },
+  { codigo: 'divisor_vacaciones', valor: '11', desde: '1972-01-01', baseLegal: 'Código de Trabajo Art. 54 — equivalencia con el divisor diario sin verificar (consulta B4, ADR-016)', confianza: 'verificar' },
+];
+
+/**
+ * Ciclo de partidas del XIII Mes (base legal §3.1). Las fechas son 'MM-DD': se
+ * repiten cada año, y la 1ª cruza el fin de año (16-dic → 15-abr). Como las
+ * tablas de tramos, `valor` es un ARRAY jsonb; lo lee `resolverLista`.
+ */
+const CICLO_XIII: ReadonlyArray<{ numero: number; desde: string; hasta: string }> = [
+  { numero: 1, desde: '12-16', hasta: '04-15' },
+  { numero: 2, desde: '04-16', hasta: '08-15' },
+  { numero: 3, desde: '08-16', hasta: '12-15' },
 ];
 
 /**
@@ -352,6 +395,18 @@ const TABLAS_TRAMOS: ReadonlyArray<{
   },
 ];
 
+/**
+ * Escala de indemnización del Art. 225 (base legal §8.3). Vigente desde la Ley
+ * 44 de 1995. Va en `regla` con esa fecha —y no cableada— porque el propio Art.
+ * 225 conserva escalas para relaciones anteriores al 2 de abril de 1972 y un
+ * régimen intermedio: cuando haya que soportarlos son filas con otra vigencia,
+ * no un `if` por fecha de ingreso (ADR-001).
+ */
+const ESCALA_INDEMNIZACION: ReadonlyArray<{ hastaAnios: number | null; semanasPorAnio: string }> = [
+  { hastaAnios: 10, semanasPorAnio: '3.4' },
+  { hastaAnios: null, semanasPorAnio: '1' },
+];
+
 export async function sembrarConceptos(db: PostgresJsDatabase<typeof schema>): Promise<void> {
   // Idempotente: se borran las filas generales del país y se reinsertan. Los
   // overrides por empresa (empresa_id no nulo) no se tocan.
@@ -364,20 +419,21 @@ export async function sembrarConceptos(db: PostgresJsDatabase<typeof schema>): P
         incide_css, tasa_css_especial, incide_seguro_educativo,
         incide_isr, regimen_isr, incide_base_xiii,
         incide_promedio_vacaciones, incide_base_liquidacion, es_inembargable,
-        base_legal, confianza, vigente_desde, vigente_hasta
+        categoria_descuento, base_legal, confianza, vigente_desde, vigente_hasta
       ) values (
         'PA', null, ${c.codigo}, ${c.nombre}, ${c.tipo}, ${c.unidad},
         ${c.css}, ${c.tasaCssEspecial}, ${c.se},
         ${c.isr}, ${c.regimenIsr}, ${c.xiii},
         ${c.vacaciones}, ${c.liquidacion}, ${c.inembargable},
-        ${c.baseLegal}, ${c.confianza}, '1972-01-01', null
+        ${c.categoriaDescuento ?? null}, ${c.baseLegal}, ${c.confianza}, '1972-01-01', null
       )`);
   }
 
   await db.execute(sql`
     delete from regla
     where empresa_id is null
-      and (codigo like 'factor\\_%' or codigo = 'divisor_salario_diario')`);
+      and (codigo like 'factor\\_%' or codigo like 'divisor\\_%'
+           or codigo like 'tope\\_%' or codigo like 'semanas\\_%')`);
   for (const r of REGLAS_DEVENGO) {
     await db.execute(sql`
       insert into regla (jurisdiccion_id, empresa_id, codigo, valor, vigente_desde, vigente_hasta, base_legal, confianza)
@@ -393,6 +449,20 @@ export async function sembrarConceptos(db: PostgresJsDatabase<typeof schema>): P
       insert into regla (jurisdiccion_id, empresa_id, codigo, valor, vigente_desde, vigente_hasta, base_legal, confianza)
       values ('PA', null, ${t.codigo}, ${JSON.stringify(t.tramos)}::jsonb, ${t.desde}::date, null, ${t.baseLegal}, 'verificado')`);
   }
+
+  await db.execute(sql`delete from regla where empresa_id is null and codigo = 'partidas_xiii'`);
+  await db.execute(sql`
+    insert into regla (jurisdiccion_id, empresa_id, codigo, valor, vigente_desde, vigente_hasta, base_legal, confianza)
+    values ('PA', null, 'partidas_xiii', ${JSON.stringify(CICLO_XIII)}::jsonb, '1972-01-01'::date, null,
+            'Decreto de Gabinete 221 de 1971 — tres partidas: 16-dic/15-abr, 16-abr/15-ago, 16-ago/15-dic',
+            'verificado')`);
+
+  await db.execute(sql`delete from regla where empresa_id is null and codigo = 'escala_indemnizacion'`);
+  await db.execute(sql`
+    insert into regla (jurisdiccion_id, empresa_id, codigo, valor, vigente_desde, vigente_hasta, base_legal, confianza)
+    values ('PA', null, 'escala_indemnizacion', ${JSON.stringify(ESCALA_INDEMNIZACION)}::jsonb, '1995-08-12'::date, null,
+            'Código de Trabajo Art. 225 (Ley 44 de 1995) — 3.4 semanas/año los primeros 10 años, 1 semana/año después',
+            'verificado')`);
 
   const pendientes = CONCEPTOS.filter((c) => c.confianza !== 'verificado').length;
   console.log(

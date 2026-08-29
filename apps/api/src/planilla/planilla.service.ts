@@ -27,7 +27,8 @@ export interface PreviewInput {
   colaboradores: ColaboradorInput[];
 }
 
-function serializarLinea(l: LineaCalculada): Record<string, string> {
+/** Convierte una línea del motor (Money/Rate) a strings para la respuesta HTTP. */
+export function serializarLinea(l: LineaCalculada): Record<string, string> {
   return {
     concepto: l.concepto,
     base: l.base.toFixed2(),

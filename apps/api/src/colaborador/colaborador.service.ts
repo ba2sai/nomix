@@ -5,6 +5,8 @@ import { DB } from '../db/db.module.js';
 import type { DbHandle } from '../db/client.js';
 import { withContext } from '../db/tenant.js';
 import { FieldCrypto } from '../crypto/field-crypto.js';
+import { proponerLiquidacion } from '../planilla/liquidacion.js';
+import type { CausaTerminacion } from '@nomix/payroll-engine';
 
 export interface CrearColaborador {
   codEmpleado: string;
@@ -31,6 +33,7 @@ export interface CrearColaborador {
   cuentaBancaria?: string | undefined;
   declaraRenta?: boolean | undefined;
   gastoRep?: string | undefined;
+  montoAguinaldo?: string | undefined;
 }
 
 export type ActualizarColaborador = {
@@ -110,6 +113,7 @@ export class ColaboradorService {
             cuentaCifrada: dto.cuentaBancaria ? this.crypto.cifrar(dto.cuentaBancaria) : null,
             declaraRenta: dto.declaraRenta ?? false,
             gastoRep: dto.gastoRep ?? null,
+            montoAguinaldo: dto.montoAguinaldo ?? null,
           })
           .returning();
         return this.aSalida(f!);
@@ -150,6 +154,7 @@ export class ColaboradorService {
         cambios.cuentaCifrada = dto.cuentaBancaria ? this.crypto.cifrar(dto.cuentaBancaria) : null;
       if (dto.declaraRenta !== undefined) cambios.declaraRenta = dto.declaraRenta;
       if (dto.gastoRep !== undefined) cambios.gastoRep = dto.gastoRep;
+      if (dto.montoAguinaldo !== undefined) cambios.montoAguinaldo = dto.montoAguinaldo;
 
       try {
         const [f] = await tx
@@ -167,6 +172,22 @@ export class ColaboradorService {
   }
 
   /** Baja (soft): marca cesante y fija fecha de término. No borra el registro. */
+  /**
+   * Propone la liquidación de un colaborador (ADR-017). Solo lee: no da de
+   * baja, no persiste y no genera planilla — un cálculo de liquidación se
+   * revisa varias veces antes de ejecutarse, y ejecutar la terminación es otra
+   * decisión, con su propio endpoint (`darDeBaja`).
+   */
+  async liquidacion(
+    ctx: Ctx,
+    id: string,
+    dto: { fechaSalida: string; causa: CausaTerminacion; semanasPreaviso?: string | undefined },
+  ): Promise<unknown> {
+    return withContext(this.handle.db, ctx, (tx) =>
+      proponerLiquidacion(tx, id, dto.fechaSalida, dto.causa, dto.semanasPreaviso ?? null),
+    );
+  }
+
   async darDeBaja(ctx: Ctx, id: string, fechaTermino: string): Promise<Record<string, unknown>> {
     return withContext(this.handle.db, ctx, async (tx) => {
       const [f] = await tx

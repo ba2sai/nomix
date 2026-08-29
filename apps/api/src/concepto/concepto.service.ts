@@ -19,6 +19,7 @@ interface FilaConcepto {
   incide_promedio_vacaciones: boolean;
   incide_base_liquidacion: boolean;
   es_inembargable: boolean;
+  categoria_descuento: string | null;
   base_legal: string;
   confianza: string;
 }
@@ -38,6 +39,7 @@ function aConcepto(f: FilaConcepto): Concepto {
     incidePromedioVacaciones: f.incide_promedio_vacaciones,
     incideBaseLiquidacion: f.incide_base_liquidacion,
     esInembargable: f.es_inembargable,
+    categoriaDescuento: f.categoria_descuento as Concepto['categoriaDescuento'],
     baseLegal: f.base_legal,
     confianza: f.confianza as Concepto['confianza'],
   };
@@ -61,7 +63,7 @@ export async function cargarCatalogo(
       incide_css, tasa_css_especial, incide_seguro_educativo,
       incide_isr, regimen_isr, incide_base_xiii,
       incide_promedio_vacaciones, incide_base_liquidacion, es_inembargable,
-      base_legal, confianza
+      categoria_descuento, base_legal, confianza
     from concepto
     where jurisdiccion_id = 'PA'
       and vigente_desde <= ${fechaPeriodo}::date
@@ -105,6 +107,7 @@ export class ConceptoService {
           xiii: c.incideBaseXiii,
           promedioVacaciones: c.incidePromedioVacaciones,
           liquidacion: c.incideBaseLiquidacion,
+          categoriaDescuento: c.categoriaDescuento,
           inembargable: c.esInembargable,
         },
       }));

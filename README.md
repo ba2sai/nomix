@@ -63,14 +63,17 @@ docs/        Toda la documentación del proyecto.
 | Rol de app NOBYPASSRLS + políticas RLS | ✅ Aplicadas y probadas (incluye `movimiento`) |
 | Regla de lint anti-decimal (ADR-010) | ✅ Configurada |
 | `@nomix/rules` — resolución temporal | ✅ Con test (12.25→13.25→14.25%) |
-| `@nomix/db` — schema, 4 migraciones, RLS | ✅ Listo |
+| `@nomix/db` — schema, 6 migraciones, RLS | ✅ Listo |
 | `@nomix/contracts` | ✅ Base |
 | **Catálogo de conceptos** (matriz de incidencia, ADR-002) | ✅ 32 conceptos sembrados desde la base legal |
 | `@nomix/payroll-engine` — CSS/SE/RP, bases, devengo, ISR | ✅ 61 tests; cuadra al centavo contra jun-2026 |
 | API: auth + RLS multi-tenant, colaboradores, planilla | ✅ Máquina de estados + movimientos del período |
 | **ISR** — retención acumulativa (`ADR-014`) | ✅ Dos flujos (ordinario / gastos de representación), verificado contra 2 quincenas reales |
 | Web: shell, login, wizard, planillas + movimientos | ✅ Operativo |
-| XIII Mes, vacaciones, liquidaciones | ⬜ Siguiente — las bases ya salen calculadas |
+| **XIII Mes** — 3 partidas, aguinaldo y piso irrenunciable (`ADR-015`) | ✅ 19 casos de prueba; ventana, divisor y partidas resueltos por vigencia |
+| **Vacaciones** — ayuda de cálculo sobre el histórico (`ADR-016`) | ✅ 7 casos de prueba; ciclo por colaborador reconstruido, sin tabla nueva |
+| **Liquidaciones** — prima, indemnización y preaviso (`ADR-017`) | ✅ 18 casos de prueba; propuesta de solo lectura, separada de la baja |
+| **Descuentos** — topes del Art. 161 (`ADR-004`) | ✅ 17 casos de prueba; asignación con arrastre de saldos |
 | Exportadores ACH / SIPE / Formulario 03 | ⬜ SIPE y Form-03 desbloqueados; ACH pendiente |
 | Roles y permisos (`GAP-005`) | ⬜ La columna `usuario_empresa.rol` existe pero no se aplica |
 | `apps/worker` (BullMQ) | 🟡 Stub |
@@ -88,6 +91,55 @@ docs/        Toda la documentación del proyecto.
 > `totales.conceptosPendientes` y la UI lo marca como provisional. Hoy son 6 de
 > 32, todos derivados de consultas abiertas del
 > [`07_consultas_profesional_planilla.md`](docs/nomix/07_consultas_profesional_planilla.md).
+
+### XIII Mes — un proceso, no un concepto (`ADR-015`)
+
+El Décimo Tercer Mes se calcula sobre lo **percibido** en la ventana de su partida
+(Decreto 19 de 1973 Art. 4º), así que no se devenga: se reconstruye sumando las
+líneas de planilla ya persistidas de esos cuatro meses. Tres reglas del Decreto que
+ningún documento previo recogía y que aquí se aplican y se **declaran** en la UI:
+el aguinaldo acostumbrado compite con la 3ª partida y gana el mayor (Art. 3º), un
+convenio colectivo solo vale si mejora el resultado general (Art. 5º), y la ventana
+la fija el Decreto aunque la cabecera diga otra cosa. La cuota **patronal** sobre el
+XIII sigue sin determinar (consulta A7): Nomix retiene la obrera —7.25%, verificada—
+y deja el costo del empleador en "no determinado" en vez de estimarlo.
+
+### Descuentos — una asignación, no una resta (`ADR-004`)
+
+El Art. 161 no describe una resta: describe topes que interactúan. Recorrer los
+descuentos en un bucle y restarlos produce resultados **ilegales**, así que es una
+etapa dedicada: la pensión alimenticia va completa y exenta del tope, la cuota de
+vivienda tiene su propio 30%, y los ordinarios compiten por el 50% restante en
+orden de antigüedad. Lo que no cupo se declara como **saldo arrastrado** — y no se
+aplica solo al período siguiente, porque la consulta E5 sigue abierta. Sobre lo
+inembargable en cuantía completa (vacaciones, indemnizaciones) no se asigna nada,
+ni siquiera un descuento que el trabajador autorizó: esa protección no es
+renunciable. Cada línea guarda **por qué** quedó como quedó.
+
+### Liquidaciones — una propuesta, no un acto (`ADR-017`)
+
+`POST /colaboradores/:id/liquidacion` calcula y devuelve; no da de baja a nadie.
+La distinción que más caro sale se modela primero: la prima de antigüedad se paga
+**cualquiera sea la causa**, la indemnización solo por despido injustificado o
+renuncia justificada. La escala del Art. 225 se recorre por tramos —15 años son
+34 + 5 = 39 semanas, no 15 × 3.4 ni 15 × 1— y vive en `regla` con la vigencia de
+la Ley 44 de 1995, para que los regímenes históricos del propio artículo sean
+filas y no código. La propuesta está incompleta **por diseño**: le faltan las
+vacaciones y el XIII proporcionales al cese (consulta D7), y lo dice en cada
+respuesta en vez de omitirlos en silencio.
+
+### Vacaciones — la misma ayuda para dos preguntas distintas (`ADR-016`)
+
+A diferencia del XIII, el ciclo de vacaciones es **por colaborador** — ancla en su
+`fecha_ingreso`, no en un calendario compartido — así que no encaja en el patrón de
+"tipo de planilla". En vez de eso, es un botón **"Calcular automático"** en
+Movimientos: reconstruye desde cuándo corre el ciclo actual (la última vez que se
+pagaron vacaciones, o el ingreso si nunca), suma lo percibido en esa ventana con la
+misma matriz de incidencia del catálogo, y sugiere `Σ ÷ 11` — un mes de sueldo por 11
+meses de ciclo, el mismo patrón que el ÷12 del XIII. La diferencia honesta: el ÷12 del
+XIII se demuestra con dos derivaciones independientes; el ÷11 de vacaciones depende de
+la convención de mes de 30 días que ya usa `divisor_salario_diario` (marcado
+`pendiente`), así que hereda esa incertidumbre en vez de esconderla.
 
 ### ISR — método acumulativo (`ADR-014`)
 

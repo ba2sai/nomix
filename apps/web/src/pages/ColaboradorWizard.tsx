@@ -158,6 +158,19 @@ export function ColaboradorWizard() {
               Declara Impuesto Sobre la Renta
             </label>
             <Campo etiqueta="Gastos de representación" value={str(d.gastoRep)} onChange={set('gastoRep')} placeholder="0.00" />
+            {/* Decreto 19 de 1973 Art. 3o: si la empresa paga aguinaldo pactado o
+                acostumbrado, la 3a partida del XIII se compara contra el y se
+                paga la suma mas favorable al trabajador. */}
+            <Campo
+              etiqueta="Aguinaldo acostumbrado"
+              value={str(d.montoAguinaldo)}
+              onChange={set('montoAguinaldo')}
+              placeholder="0.00"
+            />
+            <p className="text-xs text-slate-400 sm:col-span-2">
+              El aguinaldo solo se usa si la empresa lo tiene pactado. Compite con la 3.ª partida
+              del XIII Mes y se paga el mayor de los dos (Decreto 19 de 1973, Art. 3.º).
+            </p>
           </div>
         )}
 

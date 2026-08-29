@@ -5,6 +5,8 @@ import { DB } from '../db/db.module.js';
 import type { DbHandle } from '../db/client.js';
 import { withContext, type TenantTx } from '../db/tenant.js';
 import { cargarCatalogo } from '../concepto/concepto.service.js';
+import { TIPO_PLANILLA_XIII } from './decimo.js';
+import { calcularVacacionesColaborador } from './vacaciones.js';
 import { admiteCambioDeInsumos } from './estado.js';
 
 interface Ctx {
@@ -42,6 +44,15 @@ export class MovimientoService {
   async crear(ctx: Ctx, planillaId: string, dto: CrearMovimientoDto): Promise<unknown> {
     return withContext(this.handle.db, ctx, async (tx) => {
       const cab = await this.cabeceraEditable(tx, planillaId, { soloLectura: false });
+      // El XIII no tiene insumos capturables: su base se reconstruye de lo ya
+      // percibido en la ventana de la partida. Aceptar un movimiento aquí y
+      // luego ignorarlo al calcular sería peor que rechazarlo.
+      if (cab.tipo === TIPO_PLANILLA_XIII) {
+        throw new ConflictException(
+          'Una planilla de XIII Mes no admite movimientos: su base sale de las planillas ' +
+            'del período de la partida, no de captura manual.',
+        );
+      }
 
       // El concepto tiene que existir en el catálogo vigente del período, y la
       // captura tiene que corresponder a su unidad. Validarlo aquí evita que un
@@ -72,6 +83,20 @@ export class MovimientoService {
         })
         .returning();
       return m;
+    });
+  }
+
+  /**
+   * Ayuda de cálculo para el pago de vacaciones (ADR-016): reconstruye el
+   * ciclo vigente del colaborador desde su histórico y sugiere un monto para
+   * el movimiento `vacaciones_pagadas`. Solo lee — no crea ni modifica nada;
+   * quien captura decide si usa el sugerido, lo ajusta o lo descarta.
+   */
+  async calcularVacaciones(ctx: Ctx, planillaId: string, colaboradorId: string): Promise<unknown> {
+    return withContext(this.handle.db, ctx, async (tx) => {
+      const cab = await this.cabeceraEditable(tx, planillaId, { soloLectura: true });
+      const catalogo = await cargarCatalogo(tx, cab.periodoHasta);
+      return calcularVacacionesColaborador(tx, colaboradorId, cab.periodoHasta, planillaId, catalogo);
     });
   }
 

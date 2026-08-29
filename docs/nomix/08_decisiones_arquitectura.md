@@ -191,6 +191,25 @@ Cada descuento registra **por qué** se aplicó completo, parcialmente o no se a
 - ✅ El arrastre de saldos queda modelado desde el inicio, no parcheado después.
 - ⏸️ El **orden de prelación** entre acreedores ordinarios está pendiente (consulta **E1**). Hasta entonces: orden por antigüedad de la orden, configurable, con override manual auditable.
 
+### Implementación (2026-08-29)
+`packages/payroll-engine/src/planilla/descuentos.ts` (`asignarDescuentos`, puro) +
+`apps/api/src/planilla/descuentos.ts` (topes por vigencia). El régimen de cada
+descuento frente al Art. 161 es un DATO del catálogo —`concepto.categoria_descuento`:
+`pension_alimenticia` | `vivienda` | `ordinario`— así que añadir "cuota sindical"
+o "cooperativa" es un `INSERT`, no un `if` nuevo (coherente con `ADR-002`).
+
+Tres sub-decisiones declaradas, ninguna con respaldo legal firme:
+
+| Sub-decisión | Elegido | Por qué |
+|---|---|---|
+| ¿Las retenciones de ley consumen el tope del 50%? (**E2**) | **No** | El Art. 161 dice "el total de deducciones y retenciones no excederá del 50%", pero la base legal §9.1 lista ISR y CSS obrera como "sin límite (retención de ley)". Las dos lecturas no caben juntas; Nomix toma la segunda y lo declara. |
+| Prelación entre acreedores ordinarios (**E1**) | **Antigüedad de la captura** | A falta de una fecha de orden en el modelo, la marca de tiempo del movimiento es lo más cercano y es auditable. Se usa la marca completa, no solo la fecha: de ese orden depende quién cobra cuando el 50% no alcanza. |
+| Arrastre de saldos (**E5**) | **Se calcula y se muestra, no se aplica solo** | Que el saldo se arrastre al período siguiente, si genera mora y si hay que notificar al acreedor son tres preguntas sin responder. Aplicarlo automáticamente sería inventar las tres. |
+
+El piso de salario mínimo del Art. 161 **no se verifica todavía**: la tabla de 59
+tasas del D.E. 13 de 2025 no está cargada. El resultado lo declara en cada
+planilla en vez de dar por bueno un neto que podría vulnerarlo.
+
 ---
 
 ## ADR-005 — Cada resultado guarda qué regla lo produjo
@@ -519,7 +538,7 @@ para que sean auditables y corregibles):
 | ¿Se resta CSS/SE de la base gravable? | **No** | La secuencia oficial del instructivo DGI (base legal §4.3, líneas 6-25) no menciona restarlas — solo resta gastos de representación y deducciones personales. La documentación heredada que sí las restaba no cita esa secuencia. |
 | Deducción básica de B/.800 | **No se aplica automáticamente** | Base legal §4.2: es de la declaración **conjunta anual**, no una deducción automática de planilla. Aplicarla en cada quincena sería un error a escala. |
 | Deducciones personales (médicos, hipoteca, jubilación) | **B/.0 (no capturadas)** | No existe campo en la ficha del colaborador. Queda como `deduccionesPersonalesAnuales: Money.ZERO` explícito en el código, listo para recibir un valor real cuando se agregue el campo. |
-| XIII Mes en el flujo acumulativo | **Fuera de alcance** — el módulo XIII no existe todavía | Evita el riesgo de doble gravamen que motivó esta decisión en primer lugar; se diseñará su propio tratamiento cuando se construya `WF-002`. |
+| XIII Mes en el flujo acumulativo | **Entra al mismo acumulado anual** (resuelto en `ADR-015`) | El riesgo de doble gravamen venía de la proyección `× 13`, que presuponía el XIII sin haberlo percibido. El método acumulativo suma solo bases realmente percibidas, así que sumar la partida al acumulado ordinario lo cuenta exactamente una vez. |
 | Recalcular un período pasado después de uno posterior | **No reajusta automáticamente el posterior** | Igual que cualquier sistema de retención acumulativa: se asume que los períodos se calculan y aprueban en orden cronológico dentro del año. Aprobar congela el período (máquina de estados existente), lo que limita el riesgo en la práctica. |
 
 ### Consecuencias
@@ -532,6 +551,275 @@ para que sean auditables y corregibles):
   es letra pequeña, es visible en la UI (`PlanillaDetalle`).
 - ⚠️ Sigue pendiente: la escala de gastos de representación tiene un tope declarado
   de "no exceder el 100% del salario" (base legal §4.4) que Nomix todavía no valida.
+
+---
+
+## ADR-015 — El XIII Mes es un proceso sobre el histórico, no un concepto que se devenga
+
+**Estado:** `ACCEPTED`
+**Fecha:** 2026-08-28
+
+### Contexto
+El Décimo Tercer Mes (Decreto de Gabinete 221 de 1971, reglamentado por el Decreto
+19 de 1973) se paga en tres partidas y se calcula **sobre el promedio de los
+salarios percibidos** en el período de cada una (Art. 4º) — no sobre el salario
+contratado. Eso lo hace estructuralmente distinto de todo lo que el motor hacía
+hasta ahora: no es una línea más que se devenga dentro de un período, es un cálculo
+que mira **cuatro meses hacia atrás**.
+
+Además arrastra tres reglas que ningún documento previo del repositorio recogía, y
+que son exactamente el tipo de detalle que produce reclamos en MITRADEL:
+
+- **Art. 3º** — la 3ª partida compite con el aguinaldo pactado o acostumbrado, y se
+  paga la suma **más favorable** al trabajador.
+- **Art. 5º** — piso irrenunciable: un convenio colectivo solo vale en lo que mejore
+  el resultado de la regla general. La sobrescritura es **unidireccional**.
+- **§3.3** — la cuota **obrera** de CSS sobre el XIII es 7.25% (no 9.75%) y el Seguro
+  Educativo es 0%. La cuota **patronal** sigue sin determinar (consulta **A7**).
+
+### Decisión
+
+**1. El XIII es un TIPO de planilla (`xiii`), no un concepto capturable.**
+La rama vive en `ProcesoService.calcular` sobre `planilla_cabecera.tipo`, no dentro
+del bucle de conceptos. Un proceso distinto merece una rama distinta; lo que
+`ADR-002` prohíbe es preguntar por el *código de un concepto* dentro del motor, y
+eso se sigue respetando. Una planilla de XIII **rechaza movimientos**: aceptarlos y
+después ignorarlos sería peor que negarlos.
+
+**2. La base se reconstruye del histórico, no se acumula en una columna.**
+`acumularVentana` suma las líneas de `planilla_detalle` de las planillas que cierran
+dentro de la ventana de la partida, y las hace pasar por `acumularBases`: es la
+matriz de incidencia (`incide_base_xiii`) la que decide qué entra, con las
+deducciones restando por su tipo. Mismo principio que `ADR-014`: recalcular una
+quincena anterior corrige el XIII solo, sin dejar una cifra vieja en ninguna parte.
+Y el propio catálogo impide calcular el décimo sobre el décimo, porque `xiii_mes`
+declara `incide_base_xiii = false`.
+
+**3. Las retenciones no se calculan en el módulo del XIII.**
+La partida se emite como una línea del concepto `xiii_mes` y vuelve a pasar por
+`acumularBases`. El catálogo ya declara su tasa propia de CSS y su régimen de ISR,
+así que el 7.25% no aparece cableado en ninguna parte del código del XIII.
+
+**4. El ciclo de partidas y el divisor viven en `regla`, no en el código.**
+`partidas_xiii` (array `[{ numero, desde: 'MM-DD', hasta: 'MM-DD' }]`) y
+`divisor_xiii` (`"12"`). Llevan medio siglo sin moverse, pero cablearlas rompería
+`ADR-001` y, sobre todo, impediría que un convenio colectivo los sobrescriba.
+
+**5. Las tres comparaciones del Decreto son `MAX`, y ninguna es silenciosa.**
+Aguinaldo (Art. 3º) y piso general (Art. 5º) se resuelven con `Money.max` y
+**siempre** dejan una advertencia en `totales.advertencias`, visible en la UI. Un
+sistema que sustituye la partida por el aguinaldo sin decirlo es un sistema en el
+que nadie puede verificar por qué le pagaron lo que le pagaron.
+
+**6. El período que el usuario escribe no manda: manda el Decreto.**
+La ventana se deriva de la fecha de cierre con `resolverPartida`. Si la cabecera
+declara otras fechas, se calcula sobre la ventana legal y se advierte. Calcular
+sobre una ventana inventada sería un error que nadie detectaría hasta la demanda.
+
+**7. Sin cuota patronal determinada, esta planilla no reporta costo del empleador.**
+`totales.cargasPatronales` y `totales.costoEmpleador` van en `null`, y la UI muestra
+"no determinado" con la nota de la consulta A7. Poner el bruto ahí lo haría parecer
+un costo completo, y no lo es.
+
+### Sub-decisiones declaradas
+Ninguna de estas tiene respaldo legal firme. Se documentan aquí y se **muestran en
+la planilla** cuando aplican, para que sean auditables y corregibles:
+
+| Sub-decisión | Elegido | Por qué |
+|---|---|---|
+| ¿El aguinaldo compite con la 3ª partida o con el XIII completo del año? (**B2-bis.c**) | **Con la 3ª partida** | Lectura literal del Art. 3º: *"La Tercera Partida (…) equivale a un Aguinaldo"*, y remata *"sin perjuicio del pago completo de las otras dos partidas"*. |
+| ¿A qué tasa cotiza el aguinaldo que gana la comparación? (**B2-bis.d**) | **7.25%, como el XIII** | Se emite con el concepto `xiii_mes`, que es la partida a la que sustituye. Si el asesor responde 9.75%, se resuelve con un concepto propio en el catálogo — sin tocar código. |
+| ¿Qué califica como aguinaldo "acostumbrado de manera reiterada"? (**B2-bis.b**) | **Lo declara la empresa** | `empresa.paga_aguinaldo_acostumbrado` + `colaborador.monto_aguinaldo`. Nomix no infiere la costumbre de la historia de pagos: es un hecho jurídico, no un patrón de datos. |
+| ¿A qué partida pertenece una planilla que cruza la frontera de la ventana? | **A la partida en la que cierra** (`periodo_hasta`) | Los cortes quincenales panameños coinciden con las fronteras de las partidas, así que hoy ninguna planilla queda partida. |
+
+### Lo que este ADR NO decide
+- **La cuota patronal sobre el XIII** (consulta **A7**). No se inventa una tasa.
+- **Qué monto entra al promedio cuando paga la CSS** — licencia de maternidad y
+  riesgos profesionales están en la lista taxativa del Art. 4º sin calificar quién
+  paga (consulta **B2.e**, base legal §3.7). Hoy entra lo que el catálogo declare
+  para cada concepto; `subsidio_incapacidad_css` está en `false` y marcado
+  `verificar`.
+- **El modo "solo salario base"** de PlaniFácil: Nomix **no lo ofrece**. Viola el
+  Art. 4º y el Art. 5º lo cierra. Si se importa histórico de un sistema que lo
+  usaba, hay que advertir que puede estar subcalculado.
+
+### Consecuencias
+- ✅ Añadir un concepto que deba entrar al XIII es un `INSERT` con
+  `incide_base_xiii = true`. Cero cambios de código.
+- ✅ El XIII de un colaborador que entró a mitad del período sale correcto sin
+  prorrateo aparte: solo acumuló lo que percibió (Art. 2º del Decreto 221).
+- ✅ El ISR del XIII entra al acumulado anual ordinario y se cuenta una sola vez.
+- ⚠️ La planilla del XIII depende de que las planillas ordinarias de su ventana
+  estén calculadas. Si falta una quincena, la partida sale corta — y no hay forma
+  de detectarlo automáticamente hasta que exista un calendario de períodos
+  esperados. Queda anotado como hueco conocido.
+
+---
+
+## ADR-016 — Vacaciones: ayuda de cálculo sobre el histórico, no un ciclo persistido
+
+**Estado:** `ACCEPTED`
+**Fecha:** 2026-08-28
+
+### Contexto
+El Art. 54 del Código de Trabajo da derecho a 30 días de vacaciones por cada 11 meses
+continuos de trabajo, pagadas por adelantado sobre el promedio de lo percibido en ese
+período (base legal §6). A diferencia del XIII Mes (`ADR-015`), el ciclo de vacaciones
+**no es un calendario compartido por toda la empresa**: cada colaborador tiene el suyo,
+anclado a su `fecha_ingreso` y renovado cada vez que se le pagan. Forzar el patrón del
+XIII (una fecha única, un tipo de planilla que procesa a todos a la vez) habría sido
+artificial.
+
+Además, la mecánica operativa tiene más huecos abiertos que el XIII: la consulta
+**B4** (`07_consultas_profesional_planilla.md`) deja sin resolver el fraccionamiento
+en la práctica, la compensación en dinero sin gozarlas, y el tope de acumulación. Y el
+propio Art. 54 admite dos formulaciones de la tasa de acumulación — "30 días por 11
+meses" y "1 día por 11 días trabajados" — que la consulta B4 anota que **redondean
+distinto**, sin que ningún documento las concilie.
+
+### Decisión
+
+**1. Es una ayuda de cálculo dentro de Movimientos, no un tipo de planilla ni un
+workflow con tabla propia.**
+`GET /planillas/:id/vacaciones/:colaboradorId` (`MovimientoService.calcularVacaciones`)
+reconstruye el ciclo vigente y devuelve un monto **sugerido**. Quien captura el
+movimiento lo revisa, lo ajusta o lo descarta — el resultado siempre termina como una
+línea `vacaciones_pagadas` normal, capturada como cualquier otro movimiento (ADR-002).
+Esto deja fuera del alcance de hoy el workflow completo (`WF-003`, que nunca se
+escribió) y su tabla de ciclos abiertos/saldo — se construye cuando las consultas
+B4 tengan respuesta, no antes.
+
+**2. El ciclo se reconstruye del histórico, nunca se guarda un saldo.**
+Inicio = el día siguiente a la última línea `vacaciones_pagadas` de ese colaborador en
+`planilla_detalle`, o su `fecha_ingreso` si nunca se le han pagado. Mismo principio que
+`ADR-014`/`ADR-015`: corregir una línea de un ciclo anterior corrige el actual sin
+dejar ninguna cifra vieja desincronizada.
+
+**3. La base del promedio la sigue decidiendo el catálogo.**
+`Bases.promedioVacaciones` (ya existente desde `ADR-002`) se acumula con
+`acumularBases` sobre las líneas de planilla del ciclo, exactamente como el XIII usa
+`Bases.xiii`. Ningún concepto está nombrado dentro de este módulo.
+
+**4. La equivalencia de las dos formulaciones del Art. 54 se declara, no se demuestra.**
+```
+monto = Σ(salarios del ciclo) ÷ 11
+```
+Es el mismo patrón que el ÷12 del XIII (un "mes de sueldo" por un período de
+acumulación), pero con una diferencia importante: el ÷12 del XIII se demuestra con dos
+derivaciones independientes (base legal §3.2). El ÷11 de vacaciones **depende** de que
+"11 meses" equivalga a 330 días — una conversión que solo es cierta bajo la misma
+convención de mes de 30 días que ya usa `divisor_salario_diario`, y esa regla está
+marcada `pendiente` en el catálogo. La regla `divisor_vacaciones` se siembra en
+`verificar`, no `verificado`: **hereda** la incertidumbre en vez de ocultarla detrás de
+una demostración que no existe.
+
+**5. Un ciclo parcial se paga proporcional, sin bloquear ni advertir como error.**
+Igual que el XIII, un colaborador que no completó los 330 días acumula menos por
+construcción. La respuesta declara `cicloCompleto: false` y una advertencia — información,
+no un impedimento: Nomix no decide si la empresa puede pagar vacaciones anticipadas,
+solo calcula honestamente sobre lo que se le pide.
+
+### Lo que este ADR NO decide
+- **Fraccionamiento (Art. 56)** — máximo 2 partes, solo con convención colectiva
+  vigente. No hay campo en la ficha de empresa para declarar si existe convención
+  colectiva (consulta B4.d), así que este módulo no valida ni advierte sobre
+  fraccionamiento. Queda para cuando ese dato exista.
+- **Compensación en dinero sin gozarlas** (consulta B4.b) y **tope de acumulación**
+  (consulta B4.c). Sin respuesta, no se implementan ni se asumen.
+- **Traslape con la quincena** (consulta B4.a) — cómo se compone el talonario cuando
+  las vacaciones cubren parte de un período de pago. El monto se calcula igual; el
+  cómo se presenta en el comprobante queda para el módulo de comprobantes.
+
+### Consecuencias
+- ✅ Cero tablas nuevas, cero estado nuevo que mantener sincronizado.
+- ✅ Corregir una planilla pasada corrige automáticamente cualquier cálculo de
+  vacaciones posterior que dependa de ella.
+- ⚠️ El monto sugerido depende de que las planillas del ciclo ya estén calculadas —
+  si falta una, el ciclo sale corto. Mismo hueco conocido que `ADR-015` para el XIII,
+  ahora también declarado aquí.
+- ⚠️ Toda la matemática de "días acumulados" y "ciclo completo" hereda la
+  incertidumbre de `divisor_salario_diario`. Si ese divisor se corrige, `divisor_vacaciones`
+  debería revisarse en la misma sesión.
+
+---
+
+## ADR-017 — Liquidación: propuesta que se revisa, no un acto que se ejecuta
+
+**Estado:** `ACCEPTED`
+**Fecha:** 2026-08-29
+
+### Contexto
+La liquidación (Art. 210–229) es el módulo con más exposición legal del sistema:
+un error aquí es una demanda en MITRADEL. Tiene tres componentes con reglas
+distintas —prima de antigüedad (Art. 224), indemnización (Art. 225) y preaviso
+(Art. 212/222)— y **cuatro consultas abiertas** que tocan el número final: D1
+(cómo se prorratean los años incompletos), D2 🔴 (qué salario base se usa), D5
+(qué define a un "técnico" y si el preaviso a cargo del trabajador está sujeto al
+tope del 50%) y D7 (vacaciones y XIII proporcionales al cese).
+
+### Decisión
+
+**1. Es una propuesta de solo lectura, no una transacción.**
+`POST /colaboradores/:id/liquidacion` calcula y devuelve; **no** da de baja al
+colaborador, no persiste líneas y no genera planilla. Dar de baja sigue siendo
+`POST /colaboradores/:id/baja`, un endpoint aparte. Una liquidación se revisa
+varias veces antes de ejecutarse, y mezclar el cálculo con la terminación
+convierte cada consulta en un acto irreversible.
+
+**2. La distinción "qué procede según la causa" es lo primero que se modela.**
+La prima de antigüedad se paga **cualquiera sea la causa**, renuncia incluida
+(Art. 224); la indemnización solo por despido injustificado o renuncia
+justificada (Art. 225). Es el error más caro y más frecuente de la práctica, así
+que vive en una función explícita (`procedeIndemnizacion`) y tiene sus propios
+tests, en vez de quedar implícito en un `if` dentro del cálculo.
+
+**3. La escala del Art. 225 se recorre por tramos, nunca con un factor único.**
+15 años son 34 + 5 = 39 semanas. Calcularlo como `15 × 3.4` o como `15 × 1` son
+los dos errores clásicos; `semanasIndemnizacion` acumula tramo a tramo y lo
+prueba contra el ejemplo textual de la base legal §8.3.
+
+**4. La escala vive en `regla`, con la vigencia de la Ley 44 de 1995.**
+El propio Art. 225 conserva escalas para relaciones anteriores al 2 de abril de
+1972 y un régimen intermedio. Cuando haya que soportarlas serán filas con otra
+vigencia (`ADR-001`), no un `if` por fecha de ingreso.
+
+**5. El preaviso lo decide RRHH, no se infiere de la causa.**
+`semanasPreaviso` es un parámetro: positivo lo debe el empleador, negativo lo
+debe el trabajador (Art. 222, renuncia sin aviso), `null` si se otorgó en tiempo.
+Si el colaborador está marcado `es_tecnico` y renuncia, la propuesta **advierte**
+que el Art. 222 le exige 2 meses y no 15 días — pero no calcula el preaviso por
+su cuenta, porque si se otorgó o no es un hecho que solo conoce RRHH.
+
+**6. Las semanas se presentan como semanas.**
+`serializarLinea` convierte la tasa a porcentaje, lo que para una liquidación
+produce "671.2329%" donde en realidad son 6.7123 **semanas**. Esta respuesta usa
+su propia serialización con `semanas` explícito. Un número que el contador no
+puede leer es un número que no va a verificar.
+
+### Discrepancia declarada con el ejemplo de la base legal §8.3
+El documento calcula `1000 / 4.333 = 230.79` (redondeando el semanal) y luego
+`230.79 × 39 = 9,000.81`. Este motor no redondea intermedios (`ADR-006`) y llega
+a **9,000.69** — 12 centavos menos. Cuál acepta MITRADEL es la consulta **F4**,
+sin responder. Los tests fijan el comportamiento `ADR-006` y **documentan la
+diferencia** en vez de esconderla; el resultado la declara en `advertencias`.
+
+### Lo que este ADR NO decide
+- **El salario base** (consulta D2 🔴). Hoy se usa el salario contratado vigente
+  y la propuesta lo declara en cada respuesta. No se implementa "el más
+  favorable al trabajador" porque no está confirmado que sea la regla.
+- **Vacaciones y XIII proporcionales al cese** (consulta D7). No se incluyen en
+  la propuesta, y esta lo dice explícitamente en vez de omitirlos en silencio.
+- **Los regímenes históricos del Art. 225** (consulta D3). Solo el vigente.
+- **El Fondo de Cesantía** (Ley 44/1995, consulta D4): es un aporte trimestral
+  del empleador, no una línea de la liquidación del trabajador.
+
+### Consecuencias
+- ✅ La distinción causa → componentes queda cubierta por tests, que es donde
+  más caro sale equivocarse.
+- ✅ Soportar un régimen histórico del Art. 225 será un `INSERT` con otra
+  vigencia, sin tocar el motor.
+- ⚠️ La propuesta está incompleta por diseño: le faltan las proporcionales de
+  D7. Quien la use tiene que calcularlas aparte, y la respuesta lo advierte.
 
 ---
 
@@ -606,6 +894,10 @@ La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y t
 | 011 | Multi-tenancy con membresía explícita (modelo de firma contable) | ✅ |
 | 012 | VPS propio con Docker, PostgreSQL y PITR autogestionado | ✅ |
 | 013 | n8n diferido tras el MVP, con enganche de eventos (outbox) desde el día 1 | ✅ |
+| 014 | Retención de ISR por método acumulativo, con sus supuestos declarados | ✅ |
+| 015 | El XIII Mes es un proceso sobre el histórico, no un concepto que se devenga | ✅ |
+| 016 | Vacaciones: ayuda de cálculo sobre el histórico, sin ciclo persistido | ✅ |
+| 017 | Liquidación: propuesta de solo lectura, separada de la baja | ✅ |
 
 **No queda ninguna decisión de arquitectura abierta.** El detalle operativo está en
 [`ARCHITECTURE.md`](../../ARCHITECTURE.md).

@@ -67,12 +67,47 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
 
       {errorMut && <p className="mb-4 text-sm text-red-600">{errorMut.message}</p>}
 
-      {editable && (
+      {editable && data.tipo !== 'xiii' && (
         <MovimientosPanel
           planillaId={id}
           fechaPeriodo={data.periodoHasta}
           onCambio={invalidar}
         />
+      )}
+
+      {/* XIII Mes: no hay insumos que capturar. La partida se reconstruye de lo
+          ya percibido en la ventana que fija el Decreto 221 de 1971. */}
+      {t?.partida && (
+        <div className="mb-6 rounded-xl border border-marca-200 bg-marca-50 p-4 text-sm text-slate-700">
+          <b>
+            {t.partida.numero}.<sup>a</sup> partida del XIII Mes
+          </b>{' '}
+          — acumulada sobre lo percibido entre <b>{t.partida.ventanaDesde}</b> y{' '}
+          <b>{t.partida.ventanaHasta}</b>, dividida entre {t.partida.divisor}.
+          <div className="mt-1 text-xs text-slate-500">{t.partida.baseLegal}</div>
+        </div>
+      )}
+
+      {/* Hallazgos que cambian el monto: aguinaldo que sustituyo a la partida,
+          ventana distinta de la escrita. Nunca se resuelven en silencio. */}
+      {t?.advertencias && t.advertencias.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <b>Reglas aplicadas a favor del trabajador</b>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {t.advertencias.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Hueco declarado, no omitido: la cuota patronal sobre el XIII no esta
+          determinada (consulta A7), asi que esta planilla no reporta costo. */}
+      {t?.cuotaPatronal && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <b>Cuota patronal sobre el XIII: no determinada.</b>{' '}
+          <span className="text-xs text-slate-400">{t.cuotaPatronal.nota}</span>
+        </div>
       )}
 
       {/* Honestidad sobre el estado de la investigacion legal: el calculo uso
@@ -92,7 +127,12 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
           <Kpi titulo="Bruto" valor={t.bruto ?? '0'} />
           <Kpi titulo="Deducciones obrero" valor={t.deduccionesObrero ?? '0'} />
           <Kpi titulo="Neto a pagar" valor={t.neto ?? t.netoAntesIsr ?? '0'} />
-          <Kpi titulo="Costo empleador" valor={t.costoEmpleador ?? '0'} destacado />
+          <Kpi
+            titulo="Costo empleador"
+            valor={t.costoEmpleador ?? 'no determinado'}
+            plano={t.costoEmpleador == null}
+            destacado
+          />
         </div>
       )}
 
@@ -108,7 +148,10 @@ export function PlanillaDetalle({ id, onVolver }: { id: string; onVolver: () => 
 
       {data.colaboradores.length === 0 ? (
         <Tarjeta className="text-center text-slate-500">
-          Sin líneas todavía. Presiona <b>Calcular</b> para procesar sobre los colaboradores activos.
+          Sin líneas todavía. Presiona <b>Calcular</b> para procesar
+          {data.tipo === 'xiii'
+            ? ' sobre lo percibido en la ventana de la partida.'
+            : ' sobre los colaboradores activos.'}
         </Tarjeta>
       ) : (
         <div className="space-y-4">

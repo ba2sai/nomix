@@ -53,6 +53,7 @@ export function Planillas() {
             <Selector etiqueta="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
               <option value="quincenal">Quincenal</option>
               <option value="bisemanal">Bisemanal</option>
+              <option value="xiii">XIII Mes</option>
             </Selector>
             <Campo etiqueta="Desde" type="date" value={form.periodoDesde} onChange={(e) => setForm({ ...form, periodoDesde: e.target.value })} />
             <Campo etiqueta="Hasta" type="date" value={form.periodoHasta} onChange={(e) => setForm({ ...form, periodoHasta: e.target.value })} />
@@ -60,6 +61,13 @@ export function Planillas() {
               {crear.isPending ? 'Creando…' : 'Crear'}
             </Boton>
           </div>
+          {form.tipo === 'xiii' && (
+            <p className="mt-3 text-sm text-slate-500">
+              La ventana de acumulacion la fija el Decreto 221 de 1971 a partir de la fecha{' '}
+              <b>Hasta</b>: 15 de abril, 15 de agosto o 15 de diciembre. Si escribes otras fechas,
+              Nomix calcula sobre la ventana legal y lo advierte en el resultado.
+            </p>
+          )}
           {crear.isError && <p className="mt-3 text-sm text-red-600">{(crear.error as Error).message}</p>}
         </Tarjeta>
       )}

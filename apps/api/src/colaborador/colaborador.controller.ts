@@ -46,10 +46,31 @@ const crearSchema = z.object({
   // Paso 5 — Retenciones
   declaraRenta: z.boolean().optional(),
   gastoRep: montoStr.optional(),
+  // Aguinaldo pactado o acostumbrado (Decreto 19 de 1973 Art. 3º): compite con
+  // la 3ª partida del XIII y se paga la suma más favorable al trabajador.
+  montoAguinaldo: montoStr.optional(),
 });
 
 const actualizarSchema = crearSchema.partial();
 const bajaSchema = z.object({ fechaTermino: fecha });
+
+/**
+ * Propuesta de liquidación. `semanasPreaviso` lo decide RRHH y no se infiere de
+ * la causa: si el preaviso se otorgó en tiempo no hay pago, y si el trabajador
+ * renunció sin avisar la semana del Art. 222 va en contra (valor negativo).
+ */
+const liquidacionSchema = z.object({
+  fechaSalida: fecha,
+  causa: z.enum([
+    'despido_injustificado',
+    'despido_justificado',
+    'renuncia',
+    'renuncia_justificada',
+    'mutuo_acuerdo',
+    'vencimiento_contrato',
+  ]),
+  semanasPreaviso: z.string().regex(/^-?\d+(\.\d+)?$/, 'semanasPreaviso debe ser numérico').optional(),
+});
 
 @Controller('colaboradores')
 @UseGuards(AuthGuard)
@@ -87,6 +108,21 @@ export class ColaboradorController {
     const p = actualizarSchema.safeParse(body);
     if (!p.success) throw new BadRequestException(p.error.issues.map((i) => i.message).join('; '));
     return this.svc.actualizar(this.ctx(s), id, p.data);
+  }
+
+  /**
+   * Propuesta de liquidación (ADR-017). Es un POST porque lleva cuerpo (causa,
+   * fecha, preaviso), pero NO modifica nada: la baja sigue siendo `:id/baja`.
+   */
+  @Post(':id/liquidacion')
+  async liquidacion(
+    @Sesion() s: SesionData,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ): Promise<unknown> {
+    const p = liquidacionSchema.safeParse(body);
+    if (!p.success) throw new BadRequestException(p.error.issues.map((i) => i.message).join('; '));
+    return this.svc.liquidacion(this.ctx(s), id, p.data);
   }
 
   @Post(':id/baja')

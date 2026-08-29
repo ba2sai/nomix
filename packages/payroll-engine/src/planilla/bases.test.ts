@@ -20,6 +20,7 @@ function concepto(codigo: string, parcial: Partial<Concepto> = {}): Concepto {
     incidePromedioVacaciones: false,
     incideBaseLiquidacion: false,
     esInembargable: false,
+    categoriaDescuento: null,
     baseLegal: 'test',
     confianza: 'verificado',
     ...parcial,

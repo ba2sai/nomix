@@ -1,4 +1,5 @@
 import { Rate } from './money.js';
+import type { CategoriaDescuento } from './planilla/descuentos.js';
 
 /**
  * Catálogo de conceptos — la matriz de incidencia como DATO (ADR-002).
@@ -37,6 +38,11 @@ export interface Concepto {
   readonly incidePromedioVacaciones: boolean;
   readonly incideBaseLiquidacion: boolean;
   readonly esInembargable: boolean;
+  /**
+   * Régimen frente a los topes del Art. 161 (ADR-004). `null` en todo lo que no
+   * es un descuento de acreedor, incluidas las retenciones de ley.
+   */
+  readonly categoriaDescuento: CategoriaDescuento | null;
   /** Artículo/ley que sustenta la incidencia. Va a la traza (ADR-005). */
   readonly baseLegal: string;
   readonly confianza: Confianza;
