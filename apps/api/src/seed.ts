@@ -45,14 +45,14 @@ async function main(): Promise<void> {
   // YA hay una membresía activa (vigente_hasta is null), sin importar la fecha.
   await db.execute(sql`
     insert into usuario_empresa (usuario_id, empresa_id, rol, vigente_desde, vigente_hasta)
-    select ${USUARIO}, ${EMPRESA_A}, 'admin_rrhh', current_date, null
+    select ${USUARIO}, ${EMPRESA_A}, 'AdminRRHH', current_date, null
     where not exists (
       select 1 from usuario_empresa
       where usuario_id = ${USUARIO} and empresa_id = ${EMPRESA_A} and vigente_hasta is null
     )`);
   await db.execute(sql`
     insert into usuario_empresa (usuario_id, empresa_id, rol, vigente_desde, vigente_hasta)
-    select ${USUARIO}, ${EMPRESA_B}, 'contador_auditor', current_date, null
+    select ${USUARIO}, ${EMPRESA_B}, 'AsistContable', current_date, null
     where not exists (
       select 1 from usuario_empresa
       where usuario_id = ${USUARIO} and empresa_id = ${EMPRESA_B} and vigente_hasta is null

@@ -25,47 +25,75 @@ describe('matriz de permisos (ADR-018)', () => {
   });
 
   describe('separación de funciones — el control que motiva el ADR', () => {
-    it('quien calcula la planilla no puede aprobarla', () => {
-      expect(puede('operador_nomina', 'planilla:calcular')).toBe(true);
-      expect(puede('operador_nomina', 'planilla:aprobar')).toBe(false);
-      expect(puede('operador_nomina', 'planilla:cerrar')).toBe(false);
+    it('quien captura y calcula la planilla no puede aprobarla', () => {
+      expect(puede('AsistRRHH', 'planilla:calcular')).toBe(true);
+      expect(puede('AsistRRHH', 'planilla:aprobar')).toBe(false);
+      expect(puede('AsistRRHH', 'planilla:cerrar')).toBe(false);
     });
 
-    it('ningún rol operativo acumula calcular + aprobar salvo admin_rrhh', () => {
+    /**
+     * Acumular "preparo la planilla" y "la mando a pagar" en un mismo rol es
+     * exactamente lo que el control interno de una nómina existe para impedir.
+     * Se permite en los roles de mando —que responden por ello— y en soporte;
+     * si alguien se lo concede a un asistente, esta prueba lo detiene.
+     */
+    it('solo los roles de mando acumulan calcular + aprobar', () => {
       const acumulan = ROLES.filter(
         (r) => puede(r, 'planilla:calcular') && puede(r, 'planilla:aprobar'),
       );
-      expect(acumulan).toEqual(['admin_rrhh']);
+      expect(acumulan).toEqual(['GlobalAdmin', 'AdminFinanzas', 'AdminRRHH']);
+    });
+
+    it('aprobar y cerrar van siempre juntos: aprobar sin poder cerrar deja el proceso a medias', () => {
+      for (const r of ROLES) {
+        expect(puede(r, 'planilla:cerrar')).toBe(puede(r, 'planilla:aprobar'));
+      }
     });
   });
 
-  describe('contador_auditor es de solo lectura', () => {
+  describe('AsistContable es de solo lectura', () => {
     const escrituras: Permiso[] = [
       'colaborador:escribir',
       'planilla:calcular',
       'planilla:aprobar',
       'planilla:cerrar',
       'movimiento:escribir',
+      'liquidacion:proponer',
     ];
 
     it.each(escrituras)('no puede %s', (p) => {
-      expect(puede('contador_auditor', p)).toBe(false);
+      expect(puede('AsistContable', p)).toBe(false);
     });
 
     it('sí puede leer la bitácora — un rastro que solo ve el auditado no audita', () => {
-      expect(puede('contador_auditor', 'auditoria:leer')).toBe(true);
+      expect(puede('AsistContable', 'auditoria:leer')).toBe(true);
+    });
+
+    /**
+     * Ve los resultados de la planilla, no la ficha: para cuadrar un asiento
+     * hace falta cuánto se pagó y a quién, no la cédula ni la cuenta bancaria.
+     */
+    it('ve los resultados de planilla pero no la ficha del colaborador', () => {
+      expect(puede('AsistContable', 'planilla:leer')).toBe(true);
+      expect(puede('AsistContable', 'colaborador:leer')).toBe(false);
     });
   });
 
-  describe('portal del colaborador', () => {
+  describe('alcance por empresa (ADR-020)', () => {
     /**
-     * Mientras no exista el filtro "solo lo mío", darle `colaborador:leer`
-     * sería darle la nómina completa de la empresa. La lista vacía es la
-     * decisión, no un olvido — si alguien la puebla sin añadir el filtro por
-     * sujeto, esta prueba falla y obliga a leer el ADR.
+     * `GlobalAdmin` es "todo" DENTRO de su empresa, no sobre todas. El alcance
+     * multi-empresa no vive en esta matriz sino en la membresía, y esta prueba
+     * está aquí para que quien busque "cómo doy acceso global" lea el ADR en
+     * vez de inventarse un permiso comodín.
      */
-    it('no tiene permisos hasta que exista el filtro por sujeto', () => {
-      expect(permisosDe('colaborador')).toEqual([]);
+    it('GlobalAdmin tiene todos los permisos existentes', () => {
+      for (const p of PERMISOS) {
+        expect(puede('GlobalAdmin', p)).toBe(true);
+      }
+    });
+
+    it('ningún rol otorga acceso fuera de su empresa: no existe tal permiso', () => {
+      expect([...PERMISOS].some((p) => (p as string).includes('global'))).toBe(false);
     });
   });
 

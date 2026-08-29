@@ -75,7 +75,7 @@ docs/        Toda la documentación del proyecto.
 | **Liquidaciones** — prima, indemnización y preaviso (`ADR-017`) | ✅ 18 casos de prueba; propuesta de solo lectura, separada de la baja |
 | **Descuentos** — topes del Art. 161 (`ADR-004`) | ✅ 17 casos de prueba; asignación con arrastre de saldos |
 | Exportadores ACH / SIPE / Formulario 03 | ⬜ SIPE y Form-03 desbloqueados; ACH pendiente |
-| **Roles y permisos** (`ADR-018`, cierra `GAP-005`) | ✅ 4 roles, matriz rol × permiso con 15 pruebas; separación de funciones |
+| **Roles y permisos** (`ADR-018`, cierra `GAP-005`) | ✅ 5 roles del negocio, matriz rol × permiso probada; separación de funciones y alcance por empresa |
 | **Bitácora de acceso** (`ADR-019`) | ✅ Append-only verificada contra PostgreSQL real |
 | **Membresía vigente exigida por el RLS** (`ADR-020`) | ✅ Cierra el acceso con sesión previa a la revocación (§5.4) |
 | Web: Cmd+K, Inspection Drawer, UI por rol | ✅ La traza de cada cifra, visible |

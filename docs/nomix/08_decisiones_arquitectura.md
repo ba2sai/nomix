@@ -886,24 +886,67 @@ base de datos. Ponerla en `regla` convertiría un acceso de escritura a una tabl
 en una escalada de privilegios. Lo que sí es dato es la *asignación* de rol a
 persona: `usuario_empresa.rol`, por empresa y con vigencia.
 
-**Cuatro roles**, con separación de funciones como criterio rector:
+**Cinco roles** definidos por la organización, con separación de funciones como
+criterio rector:
 
-| Rol | Alcance | ¿Aprueba? |
-|---|---|---|
-| `admin_rrhh` | Todo, incluida la bitácora | Sí |
-| `operador_nomina` | Captura movimientos y calcula | **No** |
-| `contador_auditor` | Solo lectura, incluida la bitácora | No |
-| `colaborador` | Sin permisos todavía (ver abajo) | No |
+| Rol | Alcance | ¿Aprueba? | ¿Bitácora? |
+|---|---|---|---|
+| `GlobalAdmin` | Todo — soporte de la aplicación | Sí | Sí |
+| `AdminFinanzas` | Todo menos configuración de la aplicación | Sí | Sí |
+| `AdminRRHH` | Colaboradores y planillas; nada contable | Sí | **No** |
+| `AsistContable` | Solo lectura de resultados de planilla | No | Sí |
+| `AsistRRHH` | Alta de colaboradores, captura y cálculo | **No** | No |
 
-Que `operador_nomina` **no** apruebe no es una preferencia de diseño: es el
-control interno básico de una nómina. El mismo par de manos que introduce un
-movimiento no debería poder cerrarlo y mandarlo a pagar. Una prueba lo fija por
-escrito — si alguien concede `planilla:aprobar` a un rol que ya calcula, falla.
+Que `AsistRRHH` **no** apruebe no es una preferencia de diseño: es el control
+interno básico de una nómina. El mismo par de manos que introduce un movimiento
+no debería poder cerrarlo y mandarlo a pagar. Una prueba lo fija por escrito —
+si alguien concede `planilla:aprobar` a un rol que ya calcula, falla.
 
-`colaborador` se declara con **lista vacía a propósito**. Sus permisos no son un
-subconjunto de los demás sino otra dimensión — "lo mío" — que exige filtrar por
-`colaborador.id`, no solo por empresa. Darle hoy `colaborador:leer` le enseñaría
-la nómina completa. Se queda sin acceso hasta que exista el filtro por sujeto.
+Tres decisiones del reparto que conviene que sean explícitas:
+
+- **`AdminFinanzas` tiene hoy los mismos permisos efectivos que `GlobalAdmin`**,
+  y no es un error de copiar y pegar: lo único que los separa —configuración y
+  administración de la aplicación— todavía no existe como funcionalidad. La
+  diferencia aparecerá sola cuando esas pantallas se construyan.
+- **`AdminRRHH` no lee la bitácora.** RRHH es el principal consumidor de datos
+  de salario, o sea la parte auditada, y un rastro que lee quien está siendo
+  auditado no audita nada. Es el mismo argumento por el que `AsistContable` sí
+  la ve.
+- **`AsistContable` no ve la ficha del colaborador**, solo los resultados de
+  planilla. Para cuadrar un asiento hace falta cuánto se pagó y a quién; la
+  cédula, la cuenta bancaria y el domicilio no.
+
+Solo se reparten los permisos que **hoy tienen ruta**. Contabilidad,
+marcaciones, incidentes, configuración de la aplicación y alta de usuarios son
+parte del modelo del negocio pero aún no existen; sus permisos se añadirán al
+construirse cada uno, en vez de declarar ahora una matriz que promete accesos a
+pantallas inexistentes.
+
+### El alcance sigue siendo por empresa, incluido `GlobalAdmin`
+
+`GlobalAdmin` tiene todos los permisos **dentro de la empresa donde se le
+asignó**, no sobre todas a la vez. Dar soporte a una empresa exige tener
+membresía en ella, con su fecha y su rastro.
+
+Un rol verdaderamente global habría obligado a abrir una excepción en
+`app_current_empresa()`, que es la pieza de la que cuelga todo el aislamiento
+multi-inquilino (`ADR-020`). Cambiar eso por comodidad de soporte sería cambiar
+la propiedad más cara de defender del sistema por la más fácil de conceder. Si
+algún día hace falta acceso entre empresas, el camino es un mecanismo explícito
+de "romper el cristal" —con justificación y una marca aparte en la bitácora—, no
+un permiso comodín en esta matriz.
+
+### Nomenclatura
+
+Los nombres van tal como los definió el negocio (`GlobalAdmin`, no
+`global_admin`), aunque el resto de columnas enumeradas del esquema use
+snake_case: se prefiere que el valor guardado en `usuario_empresa.rol` sea
+exactamente el término que la gente usa al hablar, sin una capa de traducción
+que solo existiría para satisfacer una convención.
+
+Cambiar el vocabulario de roles exige migrar los datos, no solo el código: la
+matriz es fail-closed, así que una fila con un rol que ya no existe deja a esa
+persona sin ningún permiso. La migración `0010` hace esa correspondencia.
 
 ### El rol se resuelve en cada petición, no se guarda en la sesión
 

@@ -20,9 +20,27 @@
  * Quien captura y calcula NO aprueba. No es un capricho de diseño: es el
  * control interno básico de una nómina, donde el mismo par de manos que
  * introduce un movimiento no debería poder cerrarlo y mandarlo a pagar.
- * `operador_nomina` llega hasta `calcular`; `aprobar` y `cerrar` son de
- * `admin_rrhh`. `GAP-005` preguntaba exactamente esto ("quién aprueba y quién
- * puede revertir") y esta es la respuesta declarada, no una omisión.
+ * `AsistRRHH` llega hasta `calcular`; `aprobar` y `cerrar` son de `AdminRRHH`
+ * y `AdminFinanzas`. `GAP-005` preguntaba exactamente esto ("quién aprueba y
+ * quién puede revertir") y esta es la respuesta declarada, no una omisión.
+ *
+ * # El alcance sigue siendo POR EMPRESA, incluido GlobalAdmin
+ *
+ * `GlobalAdmin` tiene todos los permisos **dentro de la empresa donde se le
+ * asignó**, no sobre todas a la vez. Dar soporte a una empresa exige tener
+ * membresía en ella, con su fecha y su rastro. Un rol verdaderamente global
+ * habría obligado a abrir una excepción en `app_current_empresa()`, que es la
+ * pieza de la que cuelga todo el aislamiento multi-inquilino (`ADR-020`):
+ * cambiar eso por comodidad de soporte habría sido cambiar la propiedad más
+ * cara de defender del sistema por la más fácil de conceder.
+ *
+ * # Nomenclatura
+ *
+ * Los nombres van tal como los definió el negocio (`GlobalAdmin`, no
+ * `global_admin`), aunque el resto de columnas enumeradas del esquema usen
+ * snake_case. Se prefiere que el valor guardado en `usuario_empresa.rol` sea
+ * exactamente el término que la gente usa al hablar, sin una capa de
+ * traducción que solo existiría para satisfacer una convención.
  */
 
 /** Verbos de autorización. La ruta declara el que necesita, no el rol. */
@@ -48,7 +66,13 @@ export const PERMISOS = [
 
 export type Permiso = (typeof PERMISOS)[number];
 
-export const ROLES = ['admin_rrhh', 'operador_nomina', 'contador_auditor', 'colaborador'] as const;
+export const ROLES = [
+  'GlobalAdmin',
+  'AdminFinanzas',
+  'AdminRRHH',
+  'AsistContable',
+  'AsistRRHH',
+] as const;
 
 export type Rol = (typeof ROLES)[number];
 
@@ -70,10 +94,21 @@ export const PERMISOS_SENSIBLES: ReadonlySet<Permiso> = new Set<Permiso>([
 /**
  * La matriz. Un rol ausente aquí no tiene ningún permiso: la asignación de un
  * rol desconocido en `usuario_empresa` deniega en vez de abrir (fail-closed).
+ *
+ * Solo se reparten los permisos que HOY tienen ruta. Contabilidad, marcaciones,
+ * incidentes, configuración de la aplicación y alta de usuarios son parte del
+ * modelo de roles del negocio pero todavía no existen como funcionalidad; sus
+ * permisos se añadirán al construirse cada uno, en vez de declararlos ahora y
+ * dejar una matriz que promete accesos a pantallas inexistentes.
  */
 const MATRIZ: Readonly<Record<Rol, readonly Permiso[]>> = {
-  /** Administrador de RRHH: control completo, incluida la aprobación. */
-  admin_rrhh: [
+  /**
+   * Soporte de la aplicación. Todo, dentro de la empresa donde tenga
+   * membresía. No ejecuta el proceso de nómina de forma habitual, pero no se
+   * le recorta nada: un rol de soporte que no puede reproducir el problema del
+   * usuario no sirve para dar soporte.
+   */
+  GlobalAdmin: [
     'colaborador:leer',
     'colaborador:escribir',
     'planilla:leer',
@@ -87,12 +122,69 @@ const MATRIZ: Readonly<Record<Rol, readonly Permiso[]>> = {
   ],
 
   /**
-   * Operador de nómina: hace el trabajo del período —captura movimientos y
-   * calcula— pero no aprueba ni cierra. Tampoco propone liquidaciones: el
-   * cálculo de una salida es material para negociar una terminación y no es
-   * parte de correr la quincena.
+   * Ve todo menos lo administrativo de la aplicación, que es exclusivo de
+   * `GlobalAdmin`.
+   *
+   * Hoy eso lo deja con los MISMOS permisos efectivos que `GlobalAdmin`, y no
+   * es un descuido de copiar y pegar: lo único que los separa —configuración y
+   * administración de la aplicación— todavía no existe como funcionalidad, así
+   * que no hay ningún permiso que quitarle. La diferencia aparecerá sola
+   * cuando esas pantallas se construyan.
    */
-  operador_nomina: [
+  AdminFinanzas: [
+    'colaborador:leer',
+    'colaborador:escribir',
+    'planilla:leer',
+    'planilla:calcular',
+    'planilla:aprobar',
+    'planilla:cerrar',
+    'movimiento:escribir',
+    'liquidacion:proponer',
+    'catalogo:leer',
+    'auditoria:leer',
+  ],
+
+  /**
+   * Dueño del proceso de personal: colaboradores, planillas y su aprobación.
+   * Lo contable queda fuera (y aún no existe como permiso).
+   *
+   * NO recibe `auditoria:leer`, y esto es una decisión, no un olvido: RRHH es
+   * el principal consumidor de datos de salario, o sea la parte AUDITADA. Una
+   * bitácora que lee quien está siendo auditado no audita nada — el mismo
+   * argumento por el que `AsistContable` sí la ve. Si el negocio prefiere lo
+   * contrario, es cambiar esta línea, pero conviene que sea a sabiendas.
+   */
+  AdminRRHH: [
+    'colaborador:leer',
+    'colaborador:escribir',
+    'planilla:leer',
+    'planilla:calcular',
+    'planilla:aprobar',
+    'planilla:cerrar',
+    'movimiento:escribir',
+    'liquidacion:proponer',
+    'catalogo:leer',
+  ],
+
+  /**
+   * Contabilidad: ve los RESULTADOS de la planilla y no toca nada.
+   *
+   * Sin `colaborador:leer` a propósito: necesita cuánto se pagó y a quién, que
+   * es justo lo que da `planilla:leer`. La ficha del colaborador lleva además
+   * cédula, cuenta bancaria y domicilio, que no hacen falta para cuadrar un
+   * asiento contable.
+   */
+  AsistContable: ['planilla:leer', 'catalogo:leer', 'auditoria:leer'],
+
+  /**
+   * Asistente de RRHH: da de alta colaboradores, captura el devengado del
+   * período y calcula la planilla. No aprueba ni cierra — es la separación de
+   * funciones que motiva todo el ADR.
+   *
+   * Tampoco propone liquidaciones: el cálculo de una salida es material para
+   * negociar una terminación, no parte de correr la quincena.
+   */
+  AsistRRHH: [
     'colaborador:leer',
     'colaborador:escribir',
     'planilla:leer',
@@ -100,23 +192,6 @@ const MATRIZ: Readonly<Record<Rol, readonly Permiso[]>> = {
     'movimiento:escribir',
     'catalogo:leer',
   ],
-
-  /**
-   * Contador / auditor externo: ve todo y no toca nada. Incluye la bitácora,
-   * porque un rastro que solo puede leer el administrado no sirve para
-   * auditarlo.
-   */
-  contador_auditor: ['colaborador:leer', 'planilla:leer', 'catalogo:leer', 'auditoria:leer'],
-
-  /**
-   * Colaborador (portal del empleado). Declarado con la lista vacía a
-   * propósito: el portal todavía no existe, y sus permisos no son un
-   * subconjunto de los de arriba sino otra dimensión —"lo mío"— que exige
-   * filtrar por `colaborador.id`, no solo por empresa. Darle hoy
-   * `colaborador:leer` le dejaría ver la nómina completa. Se queda sin acceso
-   * hasta que exista el filtro por sujeto.
-   */
-  colaborador: [],
 };
 
 const PERMISOS_POR_ROL: ReadonlyMap<string, ReadonlySet<Permiso>> = new Map(

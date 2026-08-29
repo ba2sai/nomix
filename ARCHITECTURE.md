@@ -253,15 +253,22 @@ matriz rol × permiso vive en `apps/api/src/auth/permisos.ts` — en el código 
 fecha: debe ser revisable en el diff y no modificable por quien logre escribir en la
 base de datos.
 
-| Rol | Alcance | ¿Aprueba? |
-|---|---|---|
-| `admin_rrhh` | Todo, incluida la bitácora | Sí |
-| `operador_nomina` | Captura movimientos y calcula | **No** |
-| `contador_auditor` | Solo lectura, incluida la bitácora | No |
-| `colaborador` | Sin permisos hasta que exista el filtro "lo mío" | No |
+| Rol | Alcance | ¿Aprueba? | ¿Bitácora? |
+|---|---|---|---|
+| `GlobalAdmin` | Todo — soporte de la aplicación | Sí | Sí |
+| `AdminFinanzas` | Todo menos configuración de la aplicación | Sí | Sí |
+| `AdminRRHH` | Colaboradores y planillas; nada contable | Sí | No |
+| `AsistContable` | Solo lectura de resultados de planilla | No | Sí |
+| `AsistRRHH` | Alta de colaboradores, captura y cálculo | **No** | No |
 
 **Separación de funciones:** quien calcula no aprueba. Es el control interno básico
 de una nómina y está fijado por una prueba, no solo por la tabla.
+
+**El alcance es por empresa, incluido `GlobalAdmin`:** tiene todo *dentro de la
+empresa donde se le asignó*. Dar soporte exige membresía, con su fecha y su
+rastro. Un rol verdaderamente global exigiría una excepción en
+`app_current_empresa()` — la pieza de la que cuelga todo el aislamiento
+(`ADR-020`).
 
 ---
 
@@ -388,6 +395,8 @@ Eso convierte los dos únicos bloqueantes externos del proyecto en trabajo norma
 | 2026-08-29 | **UI de planilla:** el aporte patronal deja de listarse junto a ingresos y deducciones. Iban en la misma columna y con el mismo peso visual, así que se leían como si el trabajador los pagara o como si engrosaran la planilla; ahora el cuerpo de la tarjeta es lo que le pasa al colaborador —con su neto por persona, que antes no estaba— y el costo del empleador va plegado aparte y rotulado. Arreglado también el botón "cambiar empresa": la ruta rebotaba a `/colaboradores` en cuanto había empresa activa, que es siempre que uno quiere cambiarla, así que el botón parecía muerto. |
 
 | 2026-08-29 | **Documentos del colaborador** (`ADR-022`). Contratos y cédulas: la fila describe, el archivo va a disco — `bytea` habría inflado la base y con ella cada restauración PITR. En disco el archivo se llama como su UUID y nunca como lo nombró quien lo subió (travesía de directorios y colisiones), la ruta se verifica contra su raíz, los tipos son lista blanca y la descarga pasa **siempre** por la API para aplicar RLS y dejar rastro: un contrato lleva el salario pactado. `DOCUMENTOS_DIR` tiene default de desarrollo que cae dentro del repo, de ahí la entrada nueva en `.gitignore`. |
+
+| 2026-08-29 | **Modelo de roles del negocio** (`ADR-018` revisado). Los cuatro roles provisionales pasan a los cinco que define la organización: `GlobalAdmin`, `AdminFinanzas`, `AdminRRHH`, `AsistContable`, `AsistRRHH`. `GlobalAdmin` es "todo" **dentro de su empresa**, no sobre todas: un alcance realmente global habría exigido una excepción en `app_current_empresa()`, que es de donde cuelga el aislamiento entero. Se mantiene la separación de funciones (`AsistRRHH` calcula pero no aprueba) y se añade una prueba de que aprobar y cerrar van siempre juntos. `AdminRRHH` no lee la bitácora por ser la parte auditada; `AsistContable` sí, y en cambio no ve la ficha del colaborador. Migración `0010` para los datos: la matriz es fail-closed, así que un rol viejo en la tabla deja a esa persona sin permisos. |
 
 > Todo cambio de arquitectura se registra **primero** como ADR en
 > `docs/nomix/08_decisiones_arquitectura.md`, y después se refleja aquí.

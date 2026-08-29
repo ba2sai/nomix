@@ -5,10 +5,11 @@ import { Tarjeta } from '../components/ui';
 
 /** Nombres de rol legibles; se muestra el crudo si aparece uno no previsto. */
 const ROL_LEGIBLE: Record<string, string> = {
-  admin_rrhh: 'Admin RRHH',
-  operador_nomina: 'Operador de nómina',
-  contador_auditor: 'Contador / Auditor',
-  colaborador: 'Colaborador',
+  GlobalAdmin: 'Administrador global',
+  AdminFinanzas: 'Admin. de Finanzas',
+  AdminRRHH: 'Admin. de RRHH',
+  AsistContable: 'Asistente contable',
+  AsistRRHH: 'Asistente de RRHH',
 };
 
 /**
