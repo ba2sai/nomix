@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
+import { PermisoGuard } from './permiso.guard.js';
 import { SessionStore } from './session.store.js';
 import { loadEnv } from '../config/env.js';
 
@@ -14,6 +15,7 @@ export const REDIS = Symbol('REDIS');
   providers: [
     AuthService,
     AuthGuard,
+    PermisoGuard,
     {
       provide: REDIS,
       useFactory: (): Redis => new Redis(loadEnv().REDIS_URL),
@@ -25,6 +27,6 @@ export const REDIS = Symbol('REDIS');
       inject: [REDIS],
     },
   ],
-  exports: [AuthService, AuthGuard, SessionStore],
+  exports: [AuthService, AuthGuard, PermisoGuard, SessionStore],
 })
 export class AuthModule {}

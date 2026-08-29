@@ -14,6 +14,24 @@ export default tseslint.config(
     },
   },
 
+  // === Módulos de NestJS ===
+  // Un `@Module` es un contenedor de metadatos: la clase existe para colgarle
+  // el decorador y no tiene —ni debe tener— miembros. `no-extraneous-class`
+  // marcaba como error TODOS los módulos del proyecto (auth, crypto, db,
+  // auditoría) por hacer lo único que un módulo puede hacer. El override es
+  // estrecho a propósito: solo `*.module.ts`, para que la regla siga cazando
+  // clases-cajón de verdad en el resto del código.
+  //
+  // Esto NO deja el lint en verde: quedan errores previos y generalizados
+  // (sobre todo `no-non-null-assertion`) en auth, crypto y colaborador, que
+  // son deuda anterior a este cambio y se limpian aparte.
+  {
+    files: ['apps/**/*.module.ts'],
+    rules: {
+      '@typescript-eslint/no-extraneous-class': 'off',
+    },
+  },
+
   // === Contramedida decimal obligatoria (ADR-010) ===
   // En el motor de cálculo y en el código de dominio de la API, la
   // aritmética monetaria pasa SIEMPRE por el tipo Money (decimal.js).

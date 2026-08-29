@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, type Planilla } from '../lib/api';
 import { Boton, Campo, Selector, Tarjeta } from '../components/ui';
+import { useAuth } from '../lib/auth';
 import { PlanillaDetalle } from './PlanillaDetalle';
 
 function primeraQuincena(): { desde: string; hasta: string } {
@@ -19,6 +20,7 @@ const COLOR: Record<string, string> = {
 };
 
 export function Planillas() {
+  const { puede } = useAuth();
   const qc = useQueryClient();
   const [abierta, setAbierta] = useState<string | null>(null);
   const [creando, setCreando] = useState(false);
@@ -44,7 +46,10 @@ export function Planillas() {
           <h1 className="text-2xl font-bold text-slate-800">Planillas</h1>
           <p className="text-sm text-slate-500">Procesa, aprueba y cierra periodos de nómina</p>
         </div>
-        <Boton onClick={() => setCreando((v) => !v)}>+ Nueva planilla</Boton>
+        {/* Abrir un período es parte de correr la nómina, no de auditarla. */}
+        {puede('planilla:calcular') && (
+          <Boton onClick={() => setCreando((v) => !v)}>+ Nueva planilla</Boton>
+        )}
       </div>
 
       {creando && (

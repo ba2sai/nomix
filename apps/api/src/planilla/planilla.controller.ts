@@ -13,6 +13,7 @@ import {
 import { z } from 'zod';
 import { montoStr } from '@nomix/contracts';
 import { AuthGuard, Sesion } from '../auth/auth.guard.js';
+import { PermisoGuard, Requiere } from '../auth/permiso.guard.js';
 import type { SesionData } from '../auth/session.store.js';
 import { PlanillaService } from './planilla.service.js';
 import { ProcesoService } from './proceso.service.js';
@@ -59,7 +60,7 @@ const movimientoSchema = z
   });
 
 @Controller('planillas')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermisoGuard)
 export class PlanillaController {
   constructor(
     @Inject(PlanillaService) private readonly planilla: PlanillaService,
@@ -75,6 +76,7 @@ export class PlanillaController {
   // --- Planilla persistida (máquina de estados) ---
 
   @Post()
+  @Requiere('planilla:calcular')
   async crear(@Body() body: unknown, @Sesion() s: SesionData): Promise<unknown> {
     const p = crearSchema.safeParse(body);
     if (!p.success) throw new BadRequestException(p.error.issues.map((i) => i.message).join('; '));
@@ -82,6 +84,7 @@ export class PlanillaController {
   }
 
   @Get()
+  @Requiere('planilla:leer')
   async listar(@Sesion() s: SesionData): Promise<unknown> {
     return this.proceso.listar(this.ctx(s));
   }
@@ -91,6 +94,7 @@ export class PlanillaController {
    * declaración y un comodín declarado antes se traga la ruta estática.
    */
   @Get('preview-empresa')
+  @Requiere('planilla:leer')
   async previewEmpresa(@Query('fecha') fecha: unknown, @Sesion() sesion: SesionData): Promise<unknown> {
     if (!sesion.empresaActivaId) {
       throw new BadRequestException('Selecciona una empresa activa primero');
@@ -101,21 +105,25 @@ export class PlanillaController {
   }
 
   @Get(':id')
+  @Requiere('planilla:leer')
   async obtener(@Param('id') id: string, @Sesion() s: SesionData): Promise<unknown> {
     return this.proceso.obtener(this.ctx(s), id);
   }
 
   @Post(':id/calcular')
+  @Requiere('planilla:calcular')
   async calcular(@Param('id') id: string, @Sesion() s: SesionData): Promise<unknown> {
     return this.proceso.calcular(this.ctx(s), id);
   }
 
   @Post(':id/aprobar')
+  @Requiere('planilla:aprobar')
   async aprobar(@Param('id') id: string, @Sesion() s: SesionData): Promise<unknown> {
     return this.proceso.aprobar(this.ctx(s), id);
   }
 
   @Post(':id/cerrar')
+  @Requiere('planilla:cerrar')
   async cerrar(@Param('id') id: string, @Sesion() s: SesionData): Promise<unknown> {
     return this.proceso.cerrar(this.ctx(s), id);
   }
@@ -123,11 +131,13 @@ export class PlanillaController {
   // --- Movimientos del período (insumos del cálculo) ---
 
   @Get(':id/movimientos')
+  @Requiere('planilla:leer')
   async listarMovimientos(@Param('id') id: string, @Sesion() s: SesionData): Promise<unknown> {
     return this.movimientos.listar(this.ctx(s), id);
   }
 
   @Post(':id/movimientos')
+  @Requiere('movimiento:escribir')
   async crearMovimiento(
     @Param('id') id: string,
     @Body() body: unknown,
@@ -144,6 +154,7 @@ export class PlanillaController {
    * el formulario de movimiento con la respuesta y el usuario confirma.
    */
   @Get(':id/vacaciones/:colaboradorId')
+  @Requiere('planilla:leer')
   async calcularVacaciones(
     @Param('id') id: string,
     @Param('colaboradorId') colaboradorId: string,
@@ -153,6 +164,7 @@ export class PlanillaController {
   }
 
   @Delete(':id/movimientos/:movId')
+  @Requiere('movimiento:escribir')
   async eliminarMovimiento(
     @Param('id') id: string,
     @Param('movId') movId: string,
@@ -164,6 +176,7 @@ export class PlanillaController {
   // --- Previews en vivo (simulador, sin persistir) ---
 
   @Post('preview')
+  @Requiere('planilla:leer')
   async preview(@Body() body: unknown, @Sesion() sesion: SesionData): Promise<unknown> {
     if (!sesion.empresaActivaId) {
       throw new BadRequestException('Selecciona una empresa activa primero');

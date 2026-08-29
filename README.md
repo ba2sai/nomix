@@ -65,7 +65,7 @@ docs/        Toda la documentación del proyecto.
 | `@nomix/rules` — resolución temporal | ✅ Con test (12.25→13.25→14.25%) |
 | `@nomix/db` — schema, 6 migraciones, RLS | ✅ Listo |
 | `@nomix/contracts` | ✅ Base |
-| **Catálogo de conceptos** (matriz de incidencia, ADR-002) | ✅ 32 conceptos sembrados desde la base legal |
+| **Catálogo de conceptos** (matriz de incidencia, ADR-002) | ✅ 51 conceptos sembrados desde la base legal |
 | `@nomix/payroll-engine` — CSS/SE/RP, bases, devengo, ISR | ✅ 61 tests; cuadra al centavo contra jun-2026 |
 | API: auth + RLS multi-tenant, colaboradores, planilla | ✅ Máquina de estados + movimientos del período |
 | **ISR** — retención acumulativa (`ADR-014`) | ✅ Dos flujos (ordinario / gastos de representación), verificado contra 2 quincenas reales |
@@ -75,7 +75,10 @@ docs/        Toda la documentación del proyecto.
 | **Liquidaciones** — prima, indemnización y preaviso (`ADR-017`) | ✅ 18 casos de prueba; propuesta de solo lectura, separada de la baja |
 | **Descuentos** — topes del Art. 161 (`ADR-004`) | ✅ 17 casos de prueba; asignación con arrastre de saldos |
 | Exportadores ACH / SIPE / Formulario 03 | ⬜ SIPE y Form-03 desbloqueados; ACH pendiente |
-| Roles y permisos (`GAP-005`) | ⬜ La columna `usuario_empresa.rol` existe pero no se aplica |
+| **Roles y permisos** (`ADR-018`, cierra `GAP-005`) | ✅ 4 roles, matriz rol × permiso con 15 pruebas; separación de funciones |
+| **Bitácora de acceso** (`ADR-019`) | ✅ Append-only verificada contra PostgreSQL real |
+| **Membresía vigente exigida por el RLS** (`ADR-020`) | ✅ Cierra el acceso con sesión previa a la revocación (§5.4) |
+| Web: Cmd+K, Inspection Drawer, UI por rol | ✅ La traza de cada cifra, visible |
 | `apps/worker` (BullMQ) | 🟡 Stub |
 
 ### Convenciones configurables por empresa
@@ -88,9 +91,35 @@ docs/        Toda la documentación del proyecto.
 > **Sobre la honestidad del cálculo:** cada concepto del catálogo lleva su
 > `confianza` (`verificado` / `verificar` / `pendiente`). Cuando una planilla usa
 > un concepto sin verificar, el resultado lo declara en
-> `totales.conceptosPendientes` y la UI lo marca como provisional. Hoy son 6 de
-> 32, todos derivados de consultas abiertas del
+> `totales.conceptosPendientes` y la UI lo marca como provisional. Todos los
+> pendientes derivan de consultas abiertas del
 > [`07_consultas_profesional_planilla.md`](docs/nomix/07_consultas_profesional_planilla.md).
+
+### Seguridad — quién puede qué, y quién lo miró (`ADR-018`, `ADR-019`, `ADR-020`)
+
+La columna `usuario_empresa.rol` llevaba desde el principio sin consultarse: quien
+entraba a una empresa podía todo. Ahora las rutas declaran un **verbo**
+(`@Requiere('planilla:aprobar')`) y la matriz rol × permiso vive en el código —
+no en `regla`, porque una política de autorización no es una regla legal
+versionada por fecha y no debe poder cambiarla quien escriba en la base de datos.
+El criterio rector es la **separación de funciones**: `operador_nomina` captura y
+calcula pero no aprueba, que es el control interno básico de una nómina.
+
+El agujero más serio no eran los roles sino la **vigencia**. Las políticas RLS se
+aislaban por el identificador de empresa que la aplicación les pasaba, y la
+vigencia solo se comprobaba al iniciar sesión. Una sesión abierta antes de
+revocarle el acceso a alguien seguía viendo salarios y planillas — y con
+expiración deslizante, mientras hubiera actividad, sin vencer nunca.
+`app_current_empresa()` ahora devuelve la empresa **solo si la membresía está
+viva**, con lo que toda política existente y futura hereda la comprobación.
+
+Y como `ADR-007` decidió no cifrar `salario_base`, su contrapartida ya está
+pagada: `acceso_auditoria` registra quién vio qué, incluidos los intentos
+**denegados**. Es append-only por construcción — sin políticas de UPDATE ni
+DELETE — y con un `REVOKE` encima, porque el RLS por sí solo la hacía inmutable
+*en silencio* y en una bitácora el intento de manipulación es justo lo que hay
+que poder ver. Si la bitácora no está disponible, una ruta de salarios responde
+503 en vez de servir el dato sin rastro.
 
 ### XIII Mes — un proceso, no un concepto (`ADR-015`)
 

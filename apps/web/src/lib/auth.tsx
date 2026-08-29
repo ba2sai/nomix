@@ -1,9 +1,20 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, ApiError, type Me } from './api';
+import { api, ApiError, type Me, type Permiso } from './api';
 
 interface AuthState {
   cargando: boolean;
   me: Me | null;
+  /**
+   * ¿El rol vigente tiene este permiso? (`ADR-018`)
+   *
+   * Sirve para NO ofrecer lo que el servidor va a rechazar — un botón
+   * "Aprobar" que siempre devuelve 403 es peor que no tenerlo. Pero es
+   * cortesía de interfaz, **no** el control de acceso: la decisión la toma el
+   * `PermisoGuard` del backend y el RLS de la base. Ocultar un botón aquí no
+   * protege nada por sí solo, y el día que alguien llame a la API a mano el
+   * resultado tiene que ser el mismo.
+   */
+  puede: (permiso: Permiso) => boolean;
   login: (email: string, password: string) => Promise<void>;
   seleccionarEmpresa: (empresaId: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -32,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthState = {
     cargando,
     me,
+    // Sin sesión cargada no se asume nada: hasta saber el rol, no se puede.
+    puede: (permiso) => me?.permisos.includes(permiso) ?? false,
     login: async (email, password) => {
       await api.login(email, password);
       await refrescar();

@@ -36,10 +36,32 @@ export interface Membresia {
   nombreComercial: string;
   rol: string;
 }
+/**
+ * Verbos de autorizacion. Es una COPIA del vocabulario del backend
+ * (`apps/api/src/auth/permisos.ts`, ADR-018) para que el editor avise de un
+ * permiso mal escrito, pero la lista autorizada la manda el servidor en `me`:
+ * aqui no se decide nada, solo se refleja.
+ */
+export type Permiso =
+  | 'colaborador:leer'
+  | 'colaborador:escribir'
+  | 'planilla:leer'
+  | 'planilla:calcular'
+  | 'planilla:aprobar'
+  | 'planilla:cerrar'
+  | 'movimiento:escribir'
+  | 'liquidacion:proponer'
+  | 'catalogo:leer'
+  | 'auditoria:leer';
+
 export interface Me {
   usuarioId: string;
   empresaActivaId: string | null;
   empresas: Membresia[];
+  /** Rol vigente en la empresa activa; null si no hay empresa elegida. */
+  rol: string | null;
+  /** Lo que ESTE rol puede hacer, resuelto por el servidor en cada `me`. */
+  permisos: Permiso[];
 }
 
 export interface Colaborador {
@@ -121,12 +143,23 @@ export interface Planilla {
     cuotaPatronal?: { estado: string; nota: string };
   } | null;
 }
+/** Procedencia de una linea calculada (ADR-005): que regla la produjo. */
+export interface Traza {
+  reglaCodigo: string;
+  baseAplicada: string | null;
+  tasaAplicada: string | null;
+  resultado: string | null;
+  articuloLegal: string | null;
+  calculadoEn: string;
+}
 export interface PlanillaLinea {
   concepto: string;
   tipo: string;
   cantidad: string | null;
   base: string | null;
   monto: string;
+  /** null = la linea se calculo sin dejar rastro. La UI lo declara. */
+  traza: Traza | null;
 }
 export interface PlanillaDetalle extends Planilla {
   colaboradores: { colaboradorId: string; nombre: string; lineas: PlanillaLinea[] }[];
@@ -185,7 +218,9 @@ export const api = {
   login: (email: string, password: string) =>
     req<{ usuarioId: string; empresas: Membresia[] }>('POST', '/auth/login', { email, password }),
   seleccionarEmpresa: (empresaId: string) =>
-    req<{ empresaActivaId: string; rol: string }>('POST', '/auth/empresa', { empresaId }),
+    req<{ empresaActivaId: string; rol: string; permisos: Permiso[] }>('POST', '/auth/empresa', {
+      empresaId,
+    }),
   logout: () => req<{ ok: true }>('POST', '/auth/logout'),
   colaboradores: () => req<Colaborador[]>('GET', '/colaboradores'),
   crearColaborador: (dto: Record<string, unknown>) =>

@@ -50,6 +50,13 @@
       "when": 1787981100000,
       "tag": "0006_descuentos_categoria",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788048000000,
+      "tag": "0007_acceso_auditoria",
+      "breakpoints": true
     }
   ]
 }

@@ -299,6 +299,41 @@ export const planillaTraza = pgTable('planilla_traza', {
   calculadoEn: timestamp('calculado_en', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Bitácora de acceso a datos sensibles (`ADR-019`).
+ *
+ * Es la contrapartida exigida por `ADR-007`: `salario_base` NO se cifra a nivel
+ * de aplicación porque romper la agregación costaría más de lo que protege, y
+ * `ARCHITECTURE.md` §5.3 fija el precio de esa decisión — "la auditoría de
+ * acceso a salarios debe estar operativa antes del primer dato real".
+ *
+ * Append-only por construcción, no por convención: la tabla tiene política de
+ * INSERT y de SELECT, y NINGUNA de UPDATE ni DELETE. Bajo RLS, una operación
+ * sin política se deniega, así que ni siquiera el rol de la aplicación puede
+ * reescribir su propio rastro. Ver `rls.sql`.
+ *
+ * Se registran tanto los accesos permitidos como los DENEGADOS: un 403 contra
+ * datos de salario es más interesante para un investigador que un 200.
+ */
+export const accesoAuditoria = pgTable('acceso_auditoria', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  empresaId: uuid('empresa_id').notNull(),
+  usuarioId: uuid('usuario_id').notNull(),
+  /** Rol vigente al momento del acceso. Se copia: la membresía puede cambiar. */
+  rol: text('rol').notNull(),
+  ocurridoEn: timestamp('ocurrido_en', { withTimezone: true }).notNull().defaultNow(),
+  /** Permiso declarado por la ruta (`colaborador:leer`), no la URL. */
+  accion: text('accion').notNull(),
+  metodo: text('metodo').notNull(),
+  ruta: text('ruta').notNull(),
+  /** Id del recurso concreto cuando la ruta lo lleva; null en los listados. */
+  recursoId: text('recurso_id'),
+  resultado: text('resultado').notNull(), // permitido | denegado
+  /** Motivo cuando `resultado = denegado`: qué permiso faltó, o membresía vencida. */
+  motivo: text('motivo'),
+  ip: text('ip'),
+});
+
 /** Cola de eventos de dominio (patrón outbox, ADR-013 — enganche futuro de n8n). */
 export const eventoSaliente = pgTable('evento_saliente', {
   id: uuid('id').primaryKey().defaultRandom(),

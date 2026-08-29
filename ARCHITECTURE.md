@@ -187,6 +187,11 @@ sesion:{id} → { usuario_id, empresa_activa_id, expira }
 **`empresa_activa_id` vive en el servidor.** El cliente nunca lo envía. Cambiar de
 empresa es un endpoint que revalida la membresía y reescribe la sesión.
 
+**El rol NO se guarda en la sesión** (`ADR-018`). Es un dato con vigencia, y una
+copia en Redis sería una foto que envejece sin avisar: con expiración
+deslizante, revocar a alguien no surtiría efecto hasta un próximo login que
+podría no llegar nunca. Se resuelve en cada petición con `app_rol_actual()`.
+
 ### 5.2 Aislamiento por RLS
 
 Cada petición, dentro de su transacción:
@@ -196,13 +201,25 @@ SET LOCAL app.current_empresa_id = '<uuid>';
 ```
 
 ```sql
-ALTER TABLE colaboradores ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON colaboradores
-    USING (empresa_id = current_setting('app.current_empresa_id')::uuid);
+ALTER TABLE colaborador ENABLE ROW LEVEL SECURITY;
+CREATE POLICY colaborador_aislado ON colaborador
+    USING (empresa_id = app_current_empresa());
 ```
 
+**`app_current_empresa()` no es un lector del contexto** (`ADR-020`): devuelve la
+empresa activa **solo si el usuario tiene membresía vigente en ella**. Concentrar
+ahí la comprobación —en vez de repetir un `AND` en cada política— hace el control
+fail-closed por construcción: toda política, presente y futura, que se aísle por
+esa función hereda la vigencia sin que nadie tenga que acordarse.
+
+Consecuencia deliberada: un contexto de solo-empresa, sin usuario, no ve nada.
+Todo acceso a datos de inquilino queda atribuido a una persona, que es lo que
+hace que la bitácora de `ADR-019` signifique algo.
+
 **Doble capa:** guards de NestJS **y** RLS en la base de datos. Un fallo en el
-código de aplicación no debe alcanzar para filtrar datos entre inquilinos.
+código de aplicación no debe alcanzar para filtrar datos entre inquilinos. El
+`PermisoGuard` repite la comprobación de vigencia no porque la base no baste,
+sino para devolver un 403 explicable en vez de un resultado vacío.
 
 ### 5.3 Cifrado selectivo (`ADR-007`)
 
@@ -214,12 +231,37 @@ código de aplicación no debe alcanzar para filtrar datos entre inquilinos.
 
 `salario_base` no se cifra porque rompería la validación de salario mínimo y todos
 los reportes agregados. **La contrapartida es que la auditoría de acceso a salarios
-debe estar operativa antes del primer dato real.**
+debe estar operativa antes del primer dato real** — deuda ya pagada por `ADR-019`:
+tabla `acceso_auditoria`, append-only por ausencia de políticas de UPDATE/DELETE
+más un REVOKE explícito que hace ruidoso el intento de manipulación.
 
 ### 5.4 Prueba de seguridad obligatoria
 Un usuario cuya membresía en una empresa **venció** no puede acceder a sus datos, ni
-con una sesión previa ni manipulando identificadores. `seguridad-datos` debe probarlo
-explícitamente antes de cualquier despliegue.
+con una sesión previa ni manipulando identificadores.
+
+✅ **Cumplida** (`ADR-020`). La prueba vive en `apps/api/src/db/membresia.test.ts` y
+corre contra PostgreSQL real, **en la capa de datos y no a través del guard**: si
+pasara solo por la capa de aplicación estaría verificando precisamente la capa que
+un bug de aplicación puede saltarse. Cubre lectura, escritura, cambio de empresa y
+resolución de rol tras la revocación.
+
+### 5.5 Autorización por rol (`ADR-018`)
+
+Las rutas declaran un **verbo** (`@Requiere('planilla:aprobar')`), nunca un rol. La
+matriz rol × permiso vive en `apps/api/src/auth/permisos.ts` — en el código y no en
+`regla`, porque una política de autorización no es una regla legal versionada por
+fecha: debe ser revisable en el diff y no modificable por quien logre escribir en la
+base de datos.
+
+| Rol | Alcance | ¿Aprueba? |
+|---|---|---|
+| `admin_rrhh` | Todo, incluida la bitácora | Sí |
+| `operador_nomina` | Captura movimientos y calcula | **No** |
+| `contador_auditor` | Solo lectura, incluida la bitácora | No |
+| `colaborador` | Sin permisos hasta que exista el filtro "lo mío" | No |
+
+**Separación de funciones:** quien calcula no aprueba. Es el control interno básico
+de una nómina y está fijado por una prueba, no solo por la tabla.
 
 ---
 
@@ -303,8 +345,9 @@ semana previa al 15 de abril, 15 de agosto y 15 de diciembre (partidas del XIII)
 | 5 | `packages/payroll-engine` — CSS, SE, ISR, recargos | backend-nomina | ✅ CSS/SE/RP + recargos, devengo, ISR acumulativo (`ADR-014`) |
 | 6 | Asignación de descuentos (`ADR-004`) | backend-nomina | ✅ Topes del Art. 161 con arrastre de saldos |
 | 7 | Auth + membresía + RLS | seguridad-datos | ✅ |
+| 7b | **Roles, bitácora de acceso y vigencia en la base** | seguridad-datos | ✅ `ADR-018`/`019`/`020` — cierra `GAP-005` |
 | 8 | Máquina de estados de planilla | arquitecto-soluciones | ✅ borrador→calculada→aprobada→cerrada |
-| 9 | API + shell de UI | backend + frontend | ✅ base |
+| 9 | API + shell de UI | backend + frontend | ✅ base + Cmd+K, Inspection Drawer y UI por rol |
 | 10 | Exportadores ACH / SIPE / DGI | backend-nomina | 🟡 Tras el paso 0 |
 | 11 | Prestaciones: XIII Mes, vacaciones, liquidaciones | backend-nomina | ✅ XIII (`ADR-015`), Vacaciones (`ADR-016`), Liquidación (`ADR-017`) |
 
@@ -337,6 +380,9 @@ Eso convierte los dos únicos bloqueantes externos del proyecto en trabajo norma
 
 | 2026-08-29 | Asignación de descuentos (`ADR-004` implementado). Los topes del Art. 161 se resuelven como un problema de asignación, no como restas encadenadas: pensión alimenticia exenta, vivienda con tope propio del 30%, ordinarios por prelación hasta agotar el 50%, y lo que no cupo se declara como saldo arrastrado. El régimen de cada descuento es un dato del catálogo (`concepto.categoria_descuento`, migración 0006). El piso de salario mínimo no se verifica todavía y cada planilla lo declara. |
 | 2026-08-29 | Liquidación laboral (`ADR-017`). `POST /colaboradores/:id/liquidacion` es una propuesta de SOLO LECTURA, separada de la baja: prima de antigüedad (Art. 224, cualquiera sea la causa), indemnización (Art. 225, solo despido injustificado o renuncia justificada, escala recorrida por tramos) y preaviso (Art. 212/222, decidido por RRHH y no inferido). La escala vive en `regla` con la vigencia de la Ley 44 de 1995. Discrepancia declarada de 12 centavos contra el ejemplo de la base legal §8.3, que redondea el semanal intermedio y `ADR-006` no (consulta F4). |
+
+| 2026-08-29 | **Fase 3 — Seguridad.** Cierra `GAP-005` con tres decisiones. `ADR-018`: autorización por rol; las rutas declaran un verbo y la matriz vive en el código, con separación de funciones (quien calcula no aprueba) y el rol resuelto en cada petición en vez de copiado a la sesión. `ADR-019`: bitácora `acceso_auditoria`, append-only por ausencia de políticas de UPDATE/DELETE más un REVOKE que hace ruidoso el intento de manipulación; registra permitidos y denegados, y falla cerrado (503) antes que servir un salario sin rastro. `ADR-020`: `app_current_empresa()` exige membresía **vigente**, lo que cierra un agujero real — una sesión previa a la revocación seguía viendo salarios y, con expiración deslizante, podía no vencer nunca. Verificado contra PostgreSQL real. |
+| 2026-08-29 | **Fase 5 — Producto y UX.** Inspection Drawer: la traza de `ADR-005` ya se persistía pero ninguna pantalla la mostraba, así que el usuario tenía que creerse la cifra; ahora cada línea abre base, tasa, regla y artículo aplicado — y una línea *sin* traza se marca en la tabla en vez de pasar desapercibida. Paleta de comandos (Cmd+K) filtrada por permiso: lo que el rol no puede hacer, no se ofrece. La UI refleja la matriz de `ADR-018` y explica la ausencia de un botón ("tu rol no aprueba planillas") en vez de parecer que no hay nada que hacer. |
 
 > Todo cambio de arquitectura se registra **primero** como ADR en
 > `docs/nomix/08_decisiones_arquitectura.md`, y después se refleja aquí.

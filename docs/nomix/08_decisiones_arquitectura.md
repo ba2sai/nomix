@@ -857,6 +857,205 @@ El costo patronal real usa 13.25% (no 12.25%), la tasa de RP real de **esa** emp
 
 ---
 
+## ADR-018 — Autorización por rol: verbos en las rutas, matriz en el código
+
+**Estado:** ✅ Aceptado · **Cierra:** `GAP-005` · **Depende de:** `ADR-011`
+
+### El problema
+
+La columna `usuario_empresa.rol` existía desde `ADR-011` y **no se consultaba en
+ninguna parte**. En la práctica el sistema tenía un solo nivel de acceso: quien
+podía entrar a una empresa podía todo — ver salarios, capturar movimientos,
+calcular, aprobar y cerrar. `GAP-005` lo señalaba como bloqueante y preguntaba,
+literalmente, "quién aprueba y quién puede revertir".
+
+### La decisión
+
+**Las rutas declaran un verbo, no un rol.** `@Requiere('planilla:aprobar')`,
+nunca `@Roles('admin_rrhh')`. Cambiar quién aprueba es entonces editar una tabla
+en un archivo, no salir a cazar decoradores por los controladores.
+
+**La matriz rol × permiso vive en el código** (`apps/api/src/auth/permisos.ts`),
+no en `regla`. Esto contradice en apariencia la convención de "ninguna constante
+en el código", así que conviene ser explícito: esa convención habla de reglas
+**legales** — cambian por decreto, en una fecha, y recalcular 2024 exige las
+reglas de 2024. Una política de autorización no tiene ninguna de esas
+propiedades y sí tiene la contraria: debe ser revisable en el diff, estar
+cubierta por pruebas y **no** ser modificable por quien logre escribir en la
+base de datos. Ponerla en `regla` convertiría un acceso de escritura a una tabla
+en una escalada de privilegios. Lo que sí es dato es la *asignación* de rol a
+persona: `usuario_empresa.rol`, por empresa y con vigencia.
+
+**Cuatro roles**, con separación de funciones como criterio rector:
+
+| Rol | Alcance | ¿Aprueba? |
+|---|---|---|
+| `admin_rrhh` | Todo, incluida la bitácora | Sí |
+| `operador_nomina` | Captura movimientos y calcula | **No** |
+| `contador_auditor` | Solo lectura, incluida la bitácora | No |
+| `colaborador` | Sin permisos todavía (ver abajo) | No |
+
+Que `operador_nomina` **no** apruebe no es una preferencia de diseño: es el
+control interno básico de una nómina. El mismo par de manos que introduce un
+movimiento no debería poder cerrarlo y mandarlo a pagar. Una prueba lo fija por
+escrito — si alguien concede `planilla:aprobar` a un rol que ya calcula, falla.
+
+`colaborador` se declara con **lista vacía a propósito**. Sus permisos no son un
+subconjunto de los demás sino otra dimensión — "lo mío" — que exige filtrar por
+`colaborador.id`, no solo por empresa. Darle hoy `colaborador:leer` le enseñaría
+la nómina completa. Se queda sin acceso hasta que exista el filtro por sujeto.
+
+### El rol se resuelve en cada petición, no se guarda en la sesión
+
+La tentación obvia era copiar el rol a la sesión de Redis al iniciarla. Se
+descartó: el rol es un dato **con vigencia**, y una copia en la sesión es una
+foto que envejece sin avisar. Con expiración deslizante, revocar a alguien no
+surtiría efecto hasta su próximo inicio de sesión — que con actividad continua
+podría no llegar nunca. Cuesta una consulta indexada por petición y compra que
+quitar un acceso lo quite de verdad.
+
+### Consecuencias
+
+- El frontend recibe `permisos` en `/auth/me` y oculta lo que el rol no puede
+  hacer. Es **cortesía de interfaz, no el control**: la decisión es del servidor.
+- La UI dice *por qué* falta un botón ("tu rol no aprueba planillas — separación
+  de funciones") en vez de dejar una pantalla que parece "no hay nada que hacer".
+- Un rol desconocido en la columna no tiene ningún permiso (fail-closed).
+- El catálogo de conceptos tiene permiso propio (`catalogo:leer`) y **no** cuenta
+  como acceso sensible: es dato de referencia — tasas, tramos, incidencia — sin
+  el nombre de nadie. Reusar `planilla:leer` habría inundado la bitácora con la
+  consulta que hace cada carga de pantalla, enterrando los accesos que importan.
+
+---
+
+## ADR-019 — Bitácora de acceso: la contrapartida de no cifrar el salario
+
+**Estado:** ✅ Aceptado · **Paga la deuda de:** `ADR-007`
+
+### Por qué existe
+
+`ADR-007` decidió **no** cifrar `salario_base` en la aplicación, con un
+argumento que sigue siendo bueno: cifrarlo rompería la validación de salario
+mínimo y todos los reportes agregados, y la salida habitual — descifrar todo en
+memoria para agregar — ofrece *menos* seguridad real que un RLS bien aplicado.
+Pero esa decisión venía con precio, escrito en `ARCHITECTURE.md` §5.3: *"la
+auditoría de acceso a salarios debe estar operativa antes del primer dato
+real"*. Estaba sin pagar. Este ADR la paga.
+
+### Qué se registra
+
+Tabla `acceso_auditoria`: quién, cuándo, qué permiso ejerció, sobre qué ruta y
+recurso, desde qué IP, y **con qué resultado**. Se registran los accesos
+permitidos y los **denegados** — un 403 contra datos de salario le interesa más
+a un investigador que un 200.
+
+La cobertura no depende de que alguien se acuerde de instrumentar cada
+controlador: se declara una sola vez, en `PERMISOS_SENSIBLES`. Una ruta nueva
+que sirva salarios declara su permiso y con eso ya queda auditada. Añadir un
+endpoint de salarios sin rastro exigiría sacar su permiso de esa lista, que es
+un cambio visible en el diff.
+
+### Inmutable por construcción, no por convención
+
+La tabla tiene política de `SELECT` e `INSERT` y **ninguna** de `UPDATE` ni
+`DELETE`. Bajo RLS, lo que no tiene política se deniega: ni el rol de la
+aplicación puede reescribir su propio rastro, aunque escriba el SQL a mano.
+
+Al probarlo contra PostgreSQL apareció un matiz que cambió el diseño: el RLS por
+sí solo hace la tabla inmutable pero **en silencio** — un `UPDATE` no falla,
+simplemente afecta cero filas. Seguro, sí; detectable, no. Y en una bitácora el
+intento de manipulación es justo lo que uno quiere ver. Por eso se añadió un
+`REVOKE UPDATE, DELETE, TRUNCATE` explícito, que lo convierte en un `permission
+denied` inmediato. Los dos controles se solapan a propósito: si alguien concede
+privilegios de más con un `GRANT ALL`, el RLS sigue tapando el hueco; si alguien
+añade una política por descuido, el `REVOKE` sigue en pie.
+
+### El asiento entra por una función, no por un INSERT
+
+`registrar_acceso()` es `SECURITY DEFINER` por dos razones concretas:
+
+1. Un acceso denegado **por membresía vencida** ocurre justo cuando
+   `app_current_empresa()` ya devuelve `NULL`, así que un INSERT normal fallaría
+   por `WITH CHECK` y se perdería el evento más interesante.
+2. La función toma el usuario del contexto de sesión en vez de aceptarlo como
+   parámetro: quien llama no puede firmar el asiento con el nombre de otro.
+
+### Falla cerrado, y es una decisión
+
+Si la bitácora no está disponible, una ruta sensible responde `503` en vez de
+servir el dato. `ADR-007` aceptó no cifrar a cambio de "control de acceso +
+trazabilidad"; servir el salario con la trazabilidad caída rompe el trato. Se
+prefiere no responder a responder sin dejar rastro. Para los accesos
+**denegados** se hace lo contrario — se registra sin propagar el fallo —, porque
+convertir un 403 en un 500 solo esconde la causa real a quien la investiga.
+
+---
+
+## ADR-020 — La membresía vigente se comprueba en la base, no solo en la app
+
+**Estado:** ✅ Aceptado · **Cumple:** `ARCHITECTURE.md` §5.4 · **Refuerza:** `ADR-011`
+
+### El agujero
+
+`ARCHITECTURE.md` §5.4 exigía desde el principio una prueba obligatoria: *"un
+usuario cuya membresía en una empresa venció no puede acceder a sus datos, **ni
+con una sesión previa** ni manipulando identificadores"*. No existía ni la
+prueba ni el control.
+
+El fallo era real y no requería ninguna astucia para explotarlo. Las políticas
+RLS se aislaban por `app_current_empresa()`, que se limitaba a **leer el
+identificador que la aplicación le pasaba**. La vigencia solo se comprobaba en
+`mis_empresas()`, que corre al iniciar sesión y al elegir empresa. Una vez que
+`empresaActivaId` quedaba escrito en la sesión de Redis, nadie volvía a
+preguntar: la sesión de alguien a quien se le revocó el acceso seguía viendo
+salarios, planillas y movimientos — y con expiración deslizante, mientras
+hubiera actividad, sin vencer nunca.
+
+### La decisión
+
+`app_current_empresa()` deja de ser un lector del contexto y pasa a devolver la
+empresa activa **solo si el usuario tiene membresía vigente en ella**.
+
+Centralizarlo ahí, en vez de repetir un `AND` en cada política, es lo que hace
+que el control sea *fail-closed por construcción*: toda política existente — y
+toda futura — que se aísle por `app_current_empresa()` hereda la comprobación
+sin que nadie tenga que acordarse de añadirla.
+
+La función auxiliar `app_membresia_vigente()` es `SECURITY DEFINER` por
+necesidad, no por comodidad: `usuario_empresa` tiene RLS y su propia política
+llama a `app_current_empresa()`, así que leer la tabla bajo RLS produciría
+recursión de políticas. Todas las funciones `SECURITY DEFINER` del proyecto
+fijan además `search_path` — incluida `mis_empresas()`, que no lo hacía —, sin
+lo cual un `search_path` manipulado puede resolver `usuario_empresa` a otra
+tabla.
+
+La capa de aplicación hace la misma comprobación en cada petición
+(`PermisoGuard`), no porque la base no baste, sino para poder devolver un 403
+explicable en vez de un resultado vacío. Es la "doble capa" de
+`ARCHITECTURE.md` §5.2 aplicada de verdad.
+
+### Consecuencia deliberada: no hay acceso anónimo a datos de inquilino
+
+Un contexto de solo-empresa, sin usuario, ya no ve nada. Todo acceso a datos de
+una empresa queda atribuido a una persona — que es exactamente lo que `ADR-019`
+necesita para que la bitácora signifique algo. `withTenant()` queda marcado como
+obsoleto para datos de inquilino.
+
+Esto deja una pregunta abierta y **declarada**: un proceso de fondo sin usuario
+interactivo (el worker de PDF/ACH) necesitará su propia decisión explícita —
+probablemente un rol de base de datos distinto con su propio alcance. Hoy ese
+worker es un stub, y no se le abre una puerta lateral por si acaso.
+
+### Verificación
+
+`apps/api/src/db/membresia.test.ts` prueba el escenario completo contra
+PostgreSQL real, **en la capa de datos y no a través del guard**: si la prueba
+pasara solo por la capa de aplicación estaría verificando precisamente la capa
+que un bug de aplicación puede saltarse.
+
+
+---
+
 ## Hoja de ruta revisada
 
 La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y testing de motores legal/nómina") **ya no aplica tal cual**: no hay motores que extraer, y la base legal ya está hecha.
@@ -867,9 +1066,9 @@ La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y t
 | **0b. Consultas** | Cuestionario a profesional (`07_consultas...`) | 📤 **Listo para enviar** |
 | **1. Núcleo temporal** | Esquema de reglas con vigencia · catálogo de conceptos · motor de resolución (`ADR-001`, `ADR-002`, `ADR-003`) | 🔓 Desbloqueado |
 | **2. Motor de cálculo** | CSS, SE, ISR, recargos, provisiones · asignación de descuentos (`ADR-004`) · trazabilidad (`ADR-005`) | 🔓 Desbloqueado |
-| **3. Datos y acceso** | Multi-tenancy con RLS · cifrado selectivo (`ADR-007`) · auditoría | 🔓 Desbloqueado |
+| **3. Datos y acceso** | Multi-tenancy con RLS · cifrado selectivo (`ADR-007`) · roles (`ADR-018`) · auditoría (`ADR-019`) · vigencia en la base (`ADR-020`) | ✅ **Completada** |
 | **4. Prestaciones** | Vacaciones, XIII Mes, liquidaciones (Art. 210–227) | 🟡 Parcial — falta el Bloque D del cuestionario |
-| **5. Interfaz** | Layout responsivo · Cmd+K · wizard de colaborador · Inspection Drawer | 🔓 Desbloqueado |
+| **5. Interfaz** | Layout responsivo · Cmd+K · wizard de colaborador · Inspection Drawer | ✅ **Completada** — y consciente del rol (`ADR-018`) |
 | **6. Salidas** | ACH multi-banco · SIPE · Formulario 03 | 🔴 Bloqueado — faltan los layouts |
 | **7. Factor WOW** | Copiloto IA · WhatsApp · Simulador | 🔓 Desbloqueado |
 
@@ -898,6 +1097,9 @@ La Fase 1 original ("Estructuración Laravel / DB / API REST" + "Extracción y t
 | 015 | El XIII Mes es un proceso sobre el histórico, no un concepto que se devenga | ✅ |
 | 016 | Vacaciones: ayuda de cálculo sobre el histórico, sin ciclo persistido | ✅ |
 | 017 | Liquidación: propuesta de solo lectura, separada de la baja | ✅ |
+| 018 | Autorización por rol: verbos en las rutas, matriz en el código (`GAP-005`) | ✅ |
+| 019 | Bitácora de acceso inmutable — la contrapartida de `ADR-007` | ✅ |
+| 020 | La membresía vigente se comprueba en la base de datos (§5.4) | ✅ |
 
 **No queda ninguna decisión de arquitectura abierta.** El detalle operativo está en
 [`ARCHITECTURE.md`](../../ARCHITECTURE.md).

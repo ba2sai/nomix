@@ -51,6 +51,28 @@ export class AuthService {
     });
   }
 
+  /**
+   * Rol vigente del usuario en la empresa, o `null` si su membresía terminó o
+   * nunca existió (`ADR-018`).
+   *
+   * Se resuelve en CADA petición en vez de copiarse a la sesión de Redis: el
+   * rol es un dato con vigencia (`usuario_empresa.vigente_hasta`) y una copia
+   * en la sesión sería una foto que envejece sin avisar. Revocar o degradar a
+   * alguien tiene que surtir efecto en la siguiente petición, no en su próximo
+   * inicio de sesión — que con expiración deslizante podría no llegar nunca.
+   *
+   * Delega en `app_rol_actual()`, la misma función que la base de datos usa
+   * para decidir la vigencia, para que la capa de aplicación y el RLS no
+   * puedan discrepar sobre quién sigue dentro.
+   */
+  async rolVigente(usuarioId: string, empresaId: string): Promise<string | null> {
+    return withContext(this.handle.db, { usuarioId, empresaId }, async (tx) => {
+      const filas = await tx.execute(sql`select app_rol_actual() as rol`);
+      const r = (filas as unknown as ReadonlyArray<{ rol: string | null }>)[0];
+      return r?.rol ?? null;
+    });
+  }
+
   /** Valida que el usuario tenga membresía vigente en la empresa elegida. */
   async validarMembresia(usuarioId: string, empresaId: string): Promise<Membresia> {
     const membresias = await this.membresiasVigentes(usuarioId);

@@ -12,6 +12,7 @@ import {
 import { z } from 'zod';
 import { montoStr } from '@nomix/contracts';
 import { AuthGuard, Sesion } from '../auth/auth.guard.js';
+import { PermisoGuard, Requiere } from '../auth/permiso.guard.js';
 import type { SesionData } from '../auth/session.store.js';
 import { ColaboradorService } from './colaborador.service.js';
 
@@ -73,7 +74,7 @@ const liquidacionSchema = z.object({
 });
 
 @Controller('colaboradores')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermisoGuard)
 export class ColaboradorController {
   constructor(@Inject(ColaboradorService) private readonly svc: ColaboradorService) {}
 
@@ -83,16 +84,19 @@ export class ColaboradorController {
   }
 
   @Get()
+  @Requiere('colaborador:leer')
   async listar(@Sesion() s: SesionData): Promise<unknown> {
     return this.svc.listar(this.ctx(s));
   }
 
   @Get(':id')
+  @Requiere('colaborador:leer')
   async obtener(@Sesion() s: SesionData, @Param('id') id: string): Promise<unknown> {
     return this.svc.obtener(this.ctx(s), id);
   }
 
   @Post()
+  @Requiere('colaborador:escribir')
   async crear(@Sesion() s: SesionData, @Body() body: unknown): Promise<unknown> {
     const p = crearSchema.safeParse(body);
     if (!p.success) throw new BadRequestException(p.error.issues.map((i) => i.message).join('; '));
@@ -100,6 +104,7 @@ export class ColaboradorController {
   }
 
   @Patch(':id')
+  @Requiere('colaborador:escribir')
   async actualizar(
     @Sesion() s: SesionData,
     @Param('id') id: string,
@@ -115,6 +120,7 @@ export class ColaboradorController {
    * fecha, preaviso), pero NO modifica nada: la baja sigue siendo `:id/baja`.
    */
   @Post(':id/liquidacion')
+  @Requiere('liquidacion:proponer')
   async liquidacion(
     @Sesion() s: SesionData,
     @Param('id') id: string,
@@ -126,6 +132,7 @@ export class ColaboradorController {
   }
 
   @Post(':id/baja')
+  @Requiere('colaborador:escribir')
   async darDeBaja(
     @Sesion() s: SesionData,
     @Param('id') id: string,

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { schema } from '@nomix/db';
 import { createDb, type DbHandle } from './client.js';
-import { withTenant } from './tenant.js';
+import { withContext, withTenant } from './tenant.js';
 
 /**
  * Prueba de integración del aislamiento multi-inquilino a través de la capa de
@@ -10,12 +10,21 @@ import { withTenant } from './tenant.js';
  * rol nomix_app (NOBYPASSRLS).
  *
  *   DATABASE_URL=postgresql://nomix_app:...@localhost:5432/nomix pnpm --filter @nomix/api test
+ *
+ * Desde ADR-018 el contexto lleva SIEMPRE los dos ejes (usuario + empresa):
+ * `app_current_empresa()` solo reconoce la empresa activa si el usuario tiene
+ * membresía vigente en ella, así que un contexto de solo-empresa ya no ve
+ * nada. La revocación de acceso se prueba aparte, en `membresia.test.ts`.
  */
 const DATABASE_URL = process.env['DATABASE_URL'];
+const USUARIO = '99999999-9999-9999-9999-999999999999';
 const EMPRESA_A = '11111111-1111-1111-1111-111111111111';
 const EMPRESA_B = '22222222-2222-2222-2222-222222222222';
 
-describe.skipIf(!DATABASE_URL)('withTenant — aislamiento RLS por la capa de app', () => {
+const enA = { usuarioId: USUARIO, empresaId: EMPRESA_A };
+const enB = { usuarioId: USUARIO, empresaId: EMPRESA_B };
+
+describe.skipIf(!DATABASE_URL)('withContext — aislamiento RLS por la capa de app', () => {
   let handle: DbHandle;
 
   beforeAll(() => {
@@ -26,17 +35,28 @@ describe.skipIf(!DATABASE_URL)('withTenant — aislamiento RLS por la capa de ap
   });
 
   it('con empresa A activa, solo ve la empresa A', async () => {
-    const filas = await withTenant(handle.db, EMPRESA_A, (tx) => tx.select().from(schema.empresa));
+    const filas = await withContext(handle.db, enA, (tx) => tx.select().from(schema.empresa));
     expect(filas.map((e) => e.nombreComercial)).toEqual(['Empresa A']);
   });
 
   it('con empresa B activa, solo ve la empresa B', async () => {
-    const filas = await withTenant(handle.db, EMPRESA_B, (tx) => tx.select().from(schema.empresa));
+    const filas = await withContext(handle.db, enB, (tx) => tx.select().from(schema.empresa));
     expect(filas.map((e) => e.nombreComercial)).toEqual(['Empresa B']);
   });
 
-  it('sin contexto de inquilino, no ve nada (deny-by-default)', async () => {
+  it('sin contexto alguno, no ve nada (deny-by-default)', async () => {
     const filas = await handle.db.select().from(schema.empresa);
+    expect(filas).toEqual([]);
+  });
+
+  /**
+   * `withTenant` fija empresa pero no usuario. Antes de ADR-018 bastaba; ahora
+   * no, y esta prueba lo fija por escrito para que el cambio no se lea como una
+   * regresión: un acceso a datos de inquilino sin usuario atribuible no se
+   * sirve. Es también lo que hace que la bitácora (ADR-019) signifique algo.
+   */
+  it('withTenant (sin usuario) ya no alcanza para ver datos de inquilino', async () => {
+    const filas = await withTenant(handle.db, EMPRESA_A, (tx) => tx.select().from(schema.empresa));
     expect(filas).toEqual([]);
   });
 
@@ -47,9 +67,7 @@ describe.skipIf(!DATABASE_URL)('withTenant — aislamiento RLS por la capa de ap
    */
   describe('movimiento', () => {
     it('con empresa A activa, no ve movimientos de la empresa B', async () => {
-      const filas = await withTenant(handle.db, EMPRESA_A, (tx) =>
-        tx.select().from(schema.movimiento),
-      );
+      const filas = await withContext(handle.db, enA, (tx) => tx.select().from(schema.movimiento));
       expect(filas.every((m) => m.empresaId === EMPRESA_A)).toBe(true);
     });
 
@@ -60,7 +78,7 @@ describe.skipIf(!DATABASE_URL)('withTenant — aislamiento RLS por la capa de ap
 
     it('el WITH CHECK impide sembrar un movimiento en otra empresa', async () => {
       await expect(
-        withTenant(handle.db, EMPRESA_A, (tx) =>
+        withContext(handle.db, enA, (tx) =>
           tx.insert(schema.movimiento).values({
             empresaId: EMPRESA_B, // ← intento de fuga de inquilino
             planillaId: '00000000-0000-0000-0000-000000000001',

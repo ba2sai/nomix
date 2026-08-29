@@ -1,18 +1,34 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { PaletaComandos } from './PaletaComandos';
+import type { Permiso } from '../lib/api';
 
-const nav = [
-  { to: '/colaboradores', label: 'Colaboradores', icon: '👥' },
-  { to: '/planilla', label: 'Planilla', icon: '🧮' },
+/**
+ * Navegación filtrada por permiso (`ADR-018`): una sección que el rol no puede
+ * abrir no aparece en la barra. No es seguridad —el servidor decide— sino no
+ * enseñar puertas que dan a un 403.
+ */
+const nav: { to: string; label: string; icon: string; requiere: Permiso }[] = [
+  { to: '/colaboradores', label: 'Colaboradores', icon: '👥', requiere: 'colaborador:leer' },
+  { to: '/planilla', label: 'Planilla', icon: '🧮', requiere: 'planilla:leer' },
 ];
 
+/** Nombres de rol legibles; el crudo se muestra si aparece uno no previsto. */
+const ROL_LEGIBLE: Record<string, string> = {
+  admin_rrhh: 'Admin RRHH',
+  operador_nomina: 'Operador de nómina',
+  contador_auditor: 'Contador / Auditor',
+  colaborador: 'Colaborador',
+};
+
 export function Shell({ children }: { children: ReactNode }) {
-  const { me, logout } = useAuth();
+  const { me, logout, puede } = useAuth();
   const navigate = useNavigate();
   const [abierto, setAbierto] = useState(false);
 
   const empresa = me?.empresas.find((e) => e.empresaId === me.empresaActivaId);
+  const secciones = nav.filter((n) => puede(n.requiere));
 
   return (
     <div className="flex min-h-screen">
@@ -27,7 +43,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="text-lg font-bold text-marca-700">Nomix</span>
         </div>
         <nav className="p-3">
-          {nav.map((n) => (
+          {secciones.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -43,6 +59,20 @@ export function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        {/*
+          El rol, siempre a la vista. En una firma contable la misma persona es
+          admin en una empresa y solo-lectura en otra (ADR-011); saber con qué
+          sombrero se entró evita el "¿por qué no me deja?" y, peor, actuar
+          sobre la empresa equivocada creyendo que se tiene otro permiso.
+        */}
+        {me?.rol && (
+          <div className="mx-3 mt-2 rounded-lg bg-slate-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Tu rol aquí</p>
+            <p className="text-sm font-medium text-slate-700">
+              {ROL_LEGIBLE[me.rol] ?? me.rol}
+            </p>
+          </div>
+        )}
       </aside>
 
       {/* Contenido */}
@@ -67,17 +97,36 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
             )}
           </div>
-          <button
-            className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => {
-              void logout();
-            }}
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-2">
+            <kbd className="hidden rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-400 sm:inline">
+              ⌘K
+            </kbd>
+            <button
+              className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={() => {
+                void logout();
+              }}
+            >
+              Salir
+            </button>
+          </div>
         </header>
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
+
+      {/* Overlay del menú en móvil: sin esto el sidebar se abre encima del
+          contenido y no hay forma obvia de volver a cerrarlo. */}
+      {abierto && (
+        <button
+          className="fixed inset-0 z-20 bg-slate-900/20 md:hidden"
+          onClick={() => {
+            setAbierto(false);
+          }}
+          aria-label="Cerrar menú"
+        />
+      )}
+
+      <PaletaComandos />
     </div>
   );
 }

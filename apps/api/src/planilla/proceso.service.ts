@@ -80,16 +80,31 @@ export class ProcesoService {
   async obtener(ctx: Ctx, id: string): Promise<unknown> {
     return withContext(this.handle.db, ctx, async (tx) => {
       const cab = await this.cabecera(tx, id);
+      /**
+       * Cada línea viaja con SU traza (ADR-005). El rastro ya se persistía;
+       * lo que faltaba era servirlo, y sin él la cifra de la pantalla es un
+       * número que hay que creerse. Con él, la UI puede responder "¿por qué
+       * 63.65?" citando regla, base, tasa y artículo — que es justo lo que un
+       * auditor de la CSS pregunta.
+       *
+       * LEFT JOIN y no INNER: una línea sin traza es un defecto que hay que
+       * poder VER en la pantalla, no una fila que desaparece del desglose y
+       * descuadra el total sin explicación.
+       */
       const detalle = await tx
-        .select()
+        .select({
+          d: schema.planillaDetalle,
+          t: schema.planillaTraza,
+        })
         .from(schema.planillaDetalle)
+        .leftJoin(schema.planillaTraza, eq(schema.planillaTraza.detalleId, schema.planillaDetalle.id))
         .where(eq(schema.planillaDetalle.planillaId, id));
       // Agrupa las líneas por colaborador para armar el desglose.
       const porColab = new Map<string, typeof detalle>();
-      for (const d of detalle) {
-        const arr = porColab.get(d.colaboradorId) ?? [];
-        arr.push(d);
-        porColab.set(d.colaboradorId, arr);
+      for (const fila of detalle) {
+        const arr = porColab.get(fila.d.colaboradorId) ?? [];
+        arr.push(fila);
+        porColab.set(fila.d.colaboradorId, arr);
       }
       const colabIds = [...porColab.keys()];
       const nombres = colabIds.length
@@ -99,12 +114,24 @@ export class ProcesoService {
       const colaboradores = [...porColab.entries()].map(([cid, lineas]) => ({
         colaboradorId: cid,
         nombre: nombreDe.get(cid) ?? cid,
-        lineas: lineas.map((l) => ({
-          concepto: l.conceptoCodigo,
-          tipo: l.tipo,
-          cantidad: l.cantidad,
-          base: l.base,
-          monto: l.monto,
+        lineas: lineas.map(({ d, t }) => ({
+          concepto: d.conceptoCodigo,
+          tipo: d.tipo,
+          cantidad: d.cantidad,
+          base: d.base,
+          monto: d.monto,
+          // `null` significa "esta línea se calculó sin dejar rastro", y la UI
+          // lo dice con esas palabras en vez de fingir que no falta nada.
+          traza: t
+            ? {
+                reglaCodigo: t.reglaCodigo,
+                baseAplicada: t.baseAplicada,
+                tasaAplicada: t.tasaAplicada,
+                resultado: t.resultado,
+                articuloLegal: t.articuloLegal,
+                calculadoEn: t.calculadoEn,
+              }
+            : null,
         })),
       }));
       return { ...cab, colaboradores };

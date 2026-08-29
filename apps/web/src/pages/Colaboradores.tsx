@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Boton, Tarjeta } from '../components/ui';
+import { useAuth } from '../lib/auth';
 
 export function Colaboradores() {
+  const { puede } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: ['colaboradores'],
     queryFn: api.colaboradores,
@@ -16,9 +18,12 @@ export function Colaboradores() {
           <h1 className="text-2xl font-bold text-slate-800">Colaboradores</h1>
           <p className="text-sm text-slate-500">Ficha del personal de la empresa</p>
         </div>
-        <Link to="/colaboradores/nuevo">
-          <Boton>+ Nuevo colaborador</Boton>
-        </Link>
+        {/* El alta es escritura: un contador/auditor entra a ver, no a dar de alta. */}
+        {puede('colaborador:escribir') && (
+          <Link to="/colaboradores/nuevo">
+            <Boton>+ Nuevo colaborador</Boton>
+          </Link>
+        )}
       </div>
 
       {isLoading && <p className="text-slate-500">Cargando…</p>}

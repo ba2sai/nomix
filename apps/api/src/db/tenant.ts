@@ -35,7 +35,19 @@ export async function withContext<T>(
   });
 }
 
-/** Atajo: contexto de solo empresa activa (uso más común). */
+/**
+ * Contexto de solo empresa, SIN usuario.
+ *
+ * @deprecated Ya no sirve para leer datos de inquilino. Desde `ADR-018`,
+ * `app_current_empresa()` exige que el usuario del contexto tenga membresía
+ * vigente en la empresa, así que un contexto sin usuario no ve nada — que es
+ * justo lo que se quiere: todo acceso a datos de una empresa queda atribuido a
+ * una persona, sin lo cual la bitácora de `ADR-019` no significaría nada.
+ *
+ * Se conserva para el arranque y las pruebas de deny-by-default. Un proceso de
+ * fondo sin usuario interactivo (worker de PDF/ACH) necesitará su propia
+ * decisión explícita; no se le deja esta puerta abierta por si acaso.
+ */
 export async function withTenant<T>(
   db: Db,
   empresaId: string,
