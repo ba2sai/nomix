@@ -20,8 +20,12 @@ docker/volumes/
 almacen/
 apps/api/almacen/
 
-# PII real de cuenta piloto - no commitear sin anonimizar
+# PII real de cuenta piloto - no commitear sin anonimizar.
+# Ojo con el nombre: la carpeta que usa JK es `reportes/`; la regla vieja
+# (`reportes PFacil/`) no la cubria y el SIPE con 11 cedulas reales estaba
+# a un `git add -A` de entrar en la historia.
 reportes PFacil/
+reportes/
 
 # Config local de Claude Code (permisos por máquina)
 .claude/settings.local.json
