@@ -175,6 +175,20 @@ export const colaborador = pgTable(
     tipoDocumento: text('tipo_documento').notNull(), // cedula | pasaporte
     idCifrado: text('id_cifrado').notNull(), // identificación cifrada (AES-256-GCM)
     idBidx: text('id_bidx').notNull(), // índice ciego (HMAC) para unicidad/búsqueda
+    /**
+     * Número de Seguro Social, columna propia del SIPE. `null` = coincide con
+     * el documento, que es el caso normal hoy; se puebla solo en el caso
+     * histórico en que la CSS asignó un número distinto de la cédula.
+     * Cifrado como `id_cifrado`: hoy suelen ser el mismo número, y dejarlo en
+     * claro al lado anularía el cifrado del otro.
+     */
+    seguroSocialCifrado: text('seguro_social_cifrado'),
+    /**
+     * Dígito verificador de la cédula. Texto y no número: un DV de '05' pierde
+     * el cero al convertirse. `null` cuando el documento es pasaporte — el
+     * Formulario 03 manda dejar la casilla en blanco en ese caso.
+     */
+    dv: text('dv'),
     // Paso 1 — Datos personales
     sexo: text('sexo'),
     fechaNacimiento: date('fecha_nacimiento'),

@@ -206,6 +206,90 @@ const CONCEPTOS: FilaConcepto[] = [
     confianza: 'verificado',
   },
 
+
+  // ── Ingresos que exigen los reportes oficiales ──────────────────────────
+  // El SIPE (CSS) y el Informe 03 (DGI) tienen casilla propia para estos ocho.
+  // Sin ellos en el catálogo el exportador no tiene de dónde sacar la cifra, y
+  // un concepto ausente aquí revienta ruidosamente en `CatalogoConceptos.get`
+  // en vez de reportar un cero silencioso — que ante la CSS es peor.
+  {
+    codigo: 'salario_especie', nombre: 'Salario en especie', tipo: 'ingreso', unidad: 'monto',
+    ...COTIZA, ...SIN_TASA_ESPECIAL,
+    xiii: true, vacaciones: true, liquidacion: true, inembargable: false,
+    baseLegal: 'Código de Trabajo Art. 144; base legal §4.3 (entra en Total de Ingresos DGI)',
+    confianza: 'verificar',
+  },
+  {
+    codigo: 'dieta', nombre: 'Dieta', tipo: 'ingreso', unidad: 'monto',
+    // §4.3 la suma al Total de Ingresos de la DGI, así que grava ISR sin duda.
+    // Que cotice CSS es la parte no resuelta: §1.3 no la menciona y la dieta de
+    // director no es salario. Se asume que NO cotiza y queda marcado.
+    css: false, tasaCssEspecial: null, se: false, isr: true, regimenIsr: 'ordinario',
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Base legal §4.3 — integra el Total de Ingresos DGI; incidencia CSS sin confirmar',
+    confianza: 'verificar',
+  },
+  {
+    codigo: 'combustible', nombre: 'Asignación de combustible', tipo: 'ingreso', unidad: 'monto',
+    // Casilla propia en el SIPE, separada de viáticos y de salario en especie.
+    // Si es reembolso contra factura no cotiza; si es asignación fija es especie
+    // y cotiza. El layout no lo distingue y la ficha legada tampoco.
+    css: false, tasaCssEspecial: null, se: false, isr: true, regimenIsr: 'ordinario',
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Casilla propia del SIPE; régimen depende de si es reembolso o asignación fija',
+    confianza: 'pendiente',
+  },
+  {
+    codigo: 'gratificacion_aguinaldo', nombre: 'Gratificación o aguinaldo de Navidad',
+    tipo: 'ingreso', unidad: 'monto',
+    // Es el término de comparación del Art. 3º: la tercera partida del XIII es
+    // el MAYOR entre ella y esto. Ya existe `colaborador.monto_aguinaldo`.
+    // §14 deja explícitamente abierto a qué tasa cotiza — de ahí `pendiente`.
+    css: true, tasaCssEspecial: null, se: true, isr: true, regimenIsr: 'ordinario',
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Decreto 19 de 1973 Art. 3º; base legal §3.5 — tasa de cotización sin resolver',
+    confianza: 'pendiente',
+  },
+  {
+    codigo: 'xiii_gastos_representacion', nombre: 'Décimo Tercer Mes sobre gastos de representación',
+    tipo: 'ingreso', unidad: 'monto',
+    // El SIPE lo separa del XIII ordinario porque sigue el flujo paralelo de
+    // ISR de ADR-014. Hereda del XIII la tasa CSS de 7.25% y el SE en cero.
+    css: true, tasaCssEspecial: '0.072500', se: false, isr: true,
+    regimenIsr: 'gastos_representacion',
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Decreto 19 de 1973 §3.3 + Art. 701 lit. l CF — casilla propia en el SIPE',
+    confianza: 'verificar',
+  },
+  {
+    codigo: 'preaviso', nombre: 'Preaviso', tipo: 'ingreso', unidad: 'monto',
+    // Pago de terminación, como la prima y la indemnización: no cotiza. ADR-017
+    // ya lo calcula; le faltaba existir como concepto para poder reportarse.
+    // Inembargable por el Art. 161, igual que las indemnizaciones.
+    ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: true,
+    baseLegal: 'Código de Trabajo Art. 212/222; base legal §8.4 — exento hasta B/.5,000 (§6, verificar)',
+    confianza: 'verificar',
+  },
+  {
+    codigo: 'dividendo', nombre: 'Dividendo', tipo: 'ingreso', unidad: 'monto',
+    // No es salario: no cotiza y tributa por su propio impuesto de dividendos,
+    // fuera de la escala del Art. 700. Existe porque el SIPE lo pide, no porque
+    // la planilla lo calcule.
+    ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Casilla propia del SIPE; no es remuneración laboral — régimen del impuesto de dividendos',
+    confianza: 'verificar',
+  },
+  {
+    codigo: 'participacion_beneficios', nombre: 'Participación en beneficios o ingresos',
+    tipo: 'ingreso', unidad: 'monto',
+    ...NO_COTIZA, ...SIN_TASA_ESPECIAL,
+    xiii: false, vacaciones: false, liquidacion: false, inembargable: false,
+    baseLegal: 'Casilla propia del SIPE; incidencia sin confirmar con la CSS',
+    confianza: 'pendiente',
+  },
+
   // ── Deducciones al trabajador ───────────────────────────────────────────
   {
     codigo: 'css_obrero', nombre: 'Cuota obrera CSS', tipo: 'deduccion', unidad: 'monto',
