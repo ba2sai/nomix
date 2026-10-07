@@ -11,7 +11,7 @@
 
 ```
 Frontend:   React 18 + Vite + TypeScript + Tailwind CSS + Shadcn UI + TanStack Query
-Backend:    Laravel 11+ / PHP 8.3 (Clean Arch / DDD ligero) + Laravel Sanctum (modo SPA)
+Backend:    Laravel 11+ / PHP 8.3+ (Clean Arch / DDD ligero) + Laravel Sanctum (modo SPA)
 Datos:      PostgreSQL 16 (Row-Level Security) + Redis (colas con Laravel Horizon)
 Seguridad:  AES-256-GCM + blind index, KMS gestionado, 2FA, auditoría inmutable
 Infra:      Docker Compose + Traefik/NGINX + Cloudflare (WAF/DDoS)
@@ -22,7 +22,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 
 | # | Tema | Decisión | Alternativa descartada | Justificación |
 |---|---|---|---|---|
-| D-01 | Backend | **Laravel 11+ / PHP 8.3** | NestJS | Un solo framework cubre API, colas (Horizon), autenticación (Sanctum), autorización, migraciones y generación de PDFs/Excel, lo que reduce la complejidad del MVP. Tiene librerías maduras de decimales exactos (`brick/math`, `bcmath`). **Nota:** no existe código PHP de PlaniFácil que reutilizar; la lógica fiscal se modela desde la legislación (ver sección 4). |
+| D-01 | Backend | **Laravel 11+ / PHP 8.3+** | NestJS | Un solo framework cubre API, colas (Horizon), autenticación (Sanctum), autorización, migraciones y generación de PDFs/Excel, lo que reduce la complejidad del MVP. Tiene librerías maduras de decimales exactos (`brick/math`, `bcmath`). **Nota:** no existe código PHP de PlaniFácil que reutilizar; la lógica fiscal se modela desde la legislación (ver sección 4). |
 | D-02 | Frontend | **React 18 + Vite + TypeScript (SPA)** | Next.js | Es una aplicación autenticada de uso interno: no necesita SEO ni SSR. El build estático se sirve con Nginx, sin operar un servidor Node en producción. Menor superficie de ataque. |
 | D-03 | Autenticación | **Laravel Sanctum (SPA con cookies `httpOnly` + CSRF)** + 2FA desde el inicio | OAuth2 / Passport | No se guardan tokens en el navegador. OAuth2 solo hará falta si se expone una API a terceros (fase posterior). |
 | D-04 | Infraestructura | **Docker Compose** con CI/CD y *rolling updates* | Kubernetes / Swarm | K8s agrega complejidad que el MVP no justifica. Se mantienen imágenes versionadas y configuración 12-factor para migrar después. |
@@ -58,7 +58,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 
 1. **Trazabilidad:** cada regla en código cita su fuente (ley, artículo y fecha de vigencia) en un catálogo de reglas (`RULE-xxx`).
 2. **Vigencia por fecha:** tasas, topes y tramos (CSS, SE, ISR) se guardan como tablas parametrizadas con `vigente_desde` / `vigente_hasta`, nunca como constantes en el código. Así se recalculan periodos pasados con la norma de su momento.
-3. **Verificación de tasas:** las tasas que aparecen en la ingeniería inversa (p. ej. CSS 9.75% / 12.25%, SE 1.25% / 1.50%) son `OBSERVED` en PlaniFácil y **deben verificarse** contra la legislación vigente antes de usarse.
+3. **Verificación de tasas:** las tasas que aparecen en la ingeniería inversa (p. ej. CSS 9.75% / 12.25%, SE 1.25% / 1.50%) son `OBSERVED` en PlaniFácil y **deben verificarse** contra la legislación vigente antes de usarse. Ya se detectó una desactualizada: la CSS patronal es 13.25% desde abril de 2025 (Ley 462). El estado de cada regla está en [04_catalogo_reglas_legales.md](04_catalogo_reglas_legales.md).
 4. **Casos de prueba legales:** cada regla tiene pruebas unitarias con ejemplos calculados a mano y documentados (casos normales, límites y casos especiales).
 5. **Validación profesional:** un abogado laboral o contador idóneo revisa el catálogo de reglas antes de salir a producción.
 6. **Contraste opcional:** cuando sea posible, comparar resultados con planillas reales de PlaniFácil para detectar diferencias, entendiendo que la norma prevalece sobre el sistema anterior.
@@ -76,3 +76,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 - [01_propuesta_mejora_planifacil.md](01_propuesta_mejora_planifacil.md): modernización, UI/UX, lógica de negocio y seguridad.
 - [02_vision_producto_nomix_factor_wow.md](02_vision_producto_nomix_factor_wow.md): visión de producto.
 - [03_arquitectura_docker_seguridad_nomix.md](03_arquitectura_docker_seguridad_nomix.md): despliegue, seguridad y respaldos.
+- [04_catalogo_reglas_legales.md](04_catalogo_reglas_legales.md): reglas legales con fuente, vigencia y estado de verificación.
+- [05_arquitectura_codigo_y_convenciones.md](05_arquitectura_codigo_y_convenciones.md): estructura del código, motor de nómina, API, pruebas y CI.
+- [06_modelo_datos_mvp.md](06_modelo_datos_mvp.md): modelo de datos del MVP.
+- [07_alcance_mvp_y_backlog.md](07_alcance_mvp_y_backlog.md): alcance, hitos y tickets.

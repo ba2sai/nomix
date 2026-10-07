@@ -92,7 +92,7 @@ graph LR
 
 #### B. Layout Responsivo Moderno (Sidebar + Content Workspace)
 - Sustituir `#cssmenu` y el `<iframe>` por un layout responsivo estándar con **Sidebar retráctil**, **Header con buscador global (Cmd+K)** y un **Workspace fluido con auto-scroll**.
-- Implementar **Live Preview Calculations**: Al ajustar un salario base u horas extras en la pantalla, mostrar un cálculo en tiempo real de los aportes CSS (9.75%), SE (1.25%) e ISR estimado.
+- Implementar **Live Preview Calculations**: Al ajustar un salario base u horas extras en la pantalla, mostrar un cálculo en tiempo real de los aportes CSS, SE e ISR estimado (calculado en el backend con las tasas vigentes del catálogo `04`).
 
 #### C. Sistema de Feedback y Notificaciones
 - Reemplazar `$.blockUI()` por **Skeleton Loaders** durante la carga de datos y **Sonner / Toast Notifications** para confirmaciones de guardado.
@@ -103,7 +103,7 @@ graph LR
 ## 3. Pillar 3: Lógica de Negocio y Reglas Panamá
 
 ### 3.1 Hallazgos de Lógica Actual (`WF-001` a `WF-004`)
-- Los cálculos de Seguro Social (9.75% / 12.25%), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
+- Los cálculos de Seguro Social (9.75% / 12.25% observados en PlaniFácil; la cuota patronal vigente es 13.25%, ver RULE-002 en `04_catalogo_reglas_legales.md`), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
 
 ### 3.2 Estrategia de Modernización de Lógica
 
