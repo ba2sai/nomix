@@ -1,0 +1,6 @@
+# app/Domain es puro: se analiza sin Larastan y al nivel máximo.
+parameters:
+    level: max
+    paths:
+        - app/Domain
+    tmpDir: storage/framework/cache/phpstan-domain

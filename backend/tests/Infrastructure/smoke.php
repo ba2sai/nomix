@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 function check(bool $condition, string $message): void
 {
-    if (!$condition) {
+    if (! $condition) {
         throw new RuntimeException($message);
     }
     echo 'OK: '.$message.PHP_EOL;
@@ -16,6 +16,7 @@ function denied(callable $operation, string $message): void
         $operation();
     } catch (PDOException $exception) {
         check($exception->getCode() === '42501', $message);
+
         return;
     }
     throw new RuntimeException('Se permitio una operacion prohibida: '.$message);
@@ -27,7 +28,7 @@ $app = new PDO($dsn, getenv('DB_USERNAME'), getenv('DB_PASSWORD'), $options);
 $migration = new PDO($dsn, getenv('TEST_MIGRATION_USERNAME'), getenv('TEST_MIGRATION_PASSWORD'), $options);
 
 $role = $app->query('SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user')->fetch(PDO::FETCH_ASSOC);
-check($role !== false && !array_filter($role), 'Rol de aplicacion sin privilegios elevados ni BYPASSRLS');
+check($role !== false && ! array_filter($role), 'Rol de aplicacion sin privilegios elevados ni BYPASSRLS');
 check($app->query('SELECT current_user')->fetchColumn() !== $migration->query('SELECT current_user')->fetchColumn(), 'Roles distintos para API y migraciones');
 $schemaOwner = $migration->query("SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'public'")->fetchColumn();
 check($schemaOwner !== getenv('DB_USERNAME'), 'La aplicacion no es duena del esquema');

@@ -73,6 +73,6 @@ Todas las publicaciones de puertos se limitan a `127.0.0.1`. El panel de Horizon
 
 Los equivalentes son `make lint`, `make test`, `make status` y `make down`. `down` elimina los contenedores y la red del proyecto, **conservando los datos y las dependencias en volúmenes**. Para volver a iniciar, ejecuta `up` y `setup`. Ambos pueden repetirse.
 
-En NMX-001, `lint` comprueba Compose, Composer, sintaxis PHP, `strict_types` y TypeScript; `test` prueba roles y RLS contra PostgreSQL real, API directa y proxy, Redis, SMTP, Horizon y el build de React. Pint/PHPStan/Pest se añaden en NMX-002; ESLint/Prettier/Vitest en NMX-003; CI en NMX-004.
+`lint` comprueba Compose, Composer, formato PHP (Pint), análisis estático (PHPStan + Larastan, nivel máximo en `app/Domain`) y TypeScript. `test` ejecuta Pest (arquitectura de capas, prohibición de `float` en `Domain`, API), prueba roles y RLS contra PostgreSQL real, API directa y proxy, Redis, SMTP, Horizon y el build de React. Para formatear el backend: `docker compose run --rm --no-deps app composer format`. ESLint/Prettier/Vitest se añaden en NMX-003; CI en NMX-004.
 
 Consulta [la guía del entorno local](docs/nomix/08_entorno_local.md) para versiones, permisos, persistencia y solución de problemas.

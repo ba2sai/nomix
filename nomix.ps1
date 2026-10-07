@@ -39,6 +39,7 @@ try {
             Invoke-Docker compose run --rm --no-deps frontend npm run lint
         }
         'test' {
+            Invoke-Docker compose run --rm --no-deps app composer test
             Invoke-Docker compose run --rm --no-deps checks
             Invoke-Docker compose exec -T horizon php artisan horizon:status
             Invoke-Docker compose run --rm --no-deps frontend npm test

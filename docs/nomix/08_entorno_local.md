@@ -42,6 +42,29 @@ Los scripts de inicialización de PostgreSQL se ejecutan solo cuando el volumen 
 
 No se crea ninguna tabla de negocio en este ticket. Laravel solo prepara su registro técnico de migraciones. Las pruebas RLS crean una tabla con nombre aleatorio y la eliminan en `finally`.
 
+## Calidad del backend (NMX-002)
+
+| Herramienta | Configuración | Qué verifica |
+|---|---|---|
+| Pint | `backend/pint.json` | Preset `laravel` y `declare(strict_types=1)` en todo archivo PHP. `composer format` corrige; `lint` solo comprueba. |
+| PHPStan + Larastan | `backend/phpstan.neon` | Nivel 8 en `app`, `bootstrap`, `config`, `routes` y el código de soporte de pruebas. |
+| PHPStan | `backend/phpstan-domain.neon` | Nivel `max` en `app/Domain`, sin Larastan (el dominio no conoce Laravel). |
+| Pest | `backend/phpunit.xml`, `backend/tests/` | Suites `Architecture`, `Unit`, `Feature` y `Legal`. |
+
+Pruebas de arquitectura (`tests/Architecture/LayersTest.php`):
+
+- `App\Domain` no usa `Illuminate`, `Laravel`, `Carbon` ni las capas `Application`, `Infrastructure` o `Http`.
+- `App\Domain` no usa helpers globales del framework (`app`, `config`, `now`…) ni funciones de fecha del sistema (`time`, `date`…).
+- `App\Domain` no usa `float`: tipo, casts, literales decimales ni `floatval`/`doubleval`. Lo comprueba `FloatUsageScanner`, que tiene sus propios casos positivos y negativos.
+- `Application` no depende de `Http`; `Http` no accede a `Infrastructure`.
+- Todo `App` declara `strict_types`.
+
+Los archivos de prueba de Pest quedan fuera de PHPStan, porque sus APIs dinámicas (`$this->getJson`, `arch()->expect`) no se resuelven estáticamente; el código de soporte sí se analiza.
+
+Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versionado y vacío, y `phpunit.xml` fija `APP_ENV=testing`, caché y sesión en memoria, colas síncronas y correo en arreglo. La conexión a BD sigue siendo PostgreSQL (nunca SQLite), porque las pruebas de aislamiento necesitan RLS.
+
+`tests/Infrastructure/smoke.php` se mantiene como comprobación de roles y RLS sobre PostgreSQL real; su migración a Pest corresponde a NMX-022. El antiguo `tests/Infrastructure/lint.php` se retiró: Pint y PHPStan cubren la sintaxis y `strict_types`.
+
 ## Diagnóstico
 
 - Estado: `docker compose ps`.
