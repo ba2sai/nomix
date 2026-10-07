@@ -1,0 +1,164 @@
+name: ${COMPOSE_PROJECT_NAME:-nomix}
+
+x-app-environment: &app-environment
+  APP_NAME: Nomix
+  APP_ENV: ${APP_ENV:-local}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_KEY: ${APP_KEY:?Ejecuta make env o nomix.ps1 env}
+  APP_URL: http://localhost:${API_PORT:-8080}
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_DATABASE: ${POSTGRES_DB:-nomix}
+  DB_USERNAME: ${DB_USERNAME:-nomix_app}
+  DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  CACHE_STORE: redis
+  SESSION_DRIVER: file
+  QUEUE_CONNECTION: redis
+  MAIL_MAILER: smtp
+  MAIL_HOST: mailpit
+  MAIL_PORT: 1025
+
+x-php: &php
+  image: nomix-php:local
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+  working_dir: /var/www/html
+  environment: *app-environment
+  volumes:
+    - ./backend:/var/www/html
+    - vendor:/var/www/html/vendor
+    - storage:/var/www/html/storage
+
+services:
+  app:
+    <<: *php
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, -r, "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nginx:
+    image: nginx:1.28-alpine
+    ports:
+      - 127.0.0.1:${API_PORT:-8080}:80
+    volumes:
+      - ./backend/public:/var/www/html/public:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/api/health]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  horizon:
+    <<: *php
+    init: true
+    command: [php, artisan, horizon]
+    stop_signal: SIGTERM
+    stop_grace_period: 90s
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, artisan, horizon:status]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  frontend:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    init: true
+    command: [npm, run, dev, --, --host, 0.0.0.0]
+    environment:
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
+    ports:
+      - 127.0.0.1:${FRONTEND_PORT:-5173}:5173
+    volumes:
+      - ./frontend:/workspace
+      - node_modules:/workspace/node_modules
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nomix}
+      POSTGRES_USER: ${POSTGRES_USER:-nomix_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      DB_USERNAME: ${DB_USERNAME:-nomix_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+      DB_MIGRATION_USERNAME: ${DB_MIGRATION_USERNAME:-nomix_migrator}
+      DB_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Falta DB_MIGRATION_PASSWORD en .env}
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-5432}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, 'yes']
+    ports:
+      - 127.0.0.1:${REDIS_PORT:-6379}:6379
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.29
+    ports:
+      - 127.0.0.1:${MAILPIT_PORT:-8025}:8025
+
+  migrate:
+    <<: *php
+    profiles: [tools]
+    environment:
+      <<: *app-environment
+      DB_USERNAME: ${DB_MIGRATION_USERNAME:-nomix_migrator}
+      DB_PASSWORD: ${DB_MIGRATION_PASSWORD:?Falta DB_MIGRATION_PASSWORD en .env}
+    command: [php, artisan, migrate, --force]
+
+  checks:
+    <<: *php
+    profiles: [tools]
+    environment:
+      <<: *app-environment
+      TEST_MIGRATION_USERNAME: ${DB_MIGRATION_USERNAME:-nomix_migrator}
+      TEST_MIGRATION_PASSWORD: ${DB_MIGRATION_PASSWORD:?Falta DB_MIGRATION_PASSWORD en .env}
+    command: [php, tests/Infrastructure/smoke.php]
+
+volumes:
+  vendor:
+  node_modules:
+  storage:
+  postgres_data:
+  redis_data:

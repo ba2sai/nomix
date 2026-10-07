@@ -62,22 +62,27 @@ H1 y H2 pueden avanzar en paralelo una vez cerrado H0.
 #### NMX-001 — Estructura del monorepo y Docker Compose
 - **Impl.:** Codex · **Rev.:** Claude · **Depende de:** —
 - Crear la estructura de la sección 1 de `05`, `docker-compose.yml` con los servicios de la sección 5, `Makefile`, `.env.example` y `.gitignore` completo.
+- **Delimitación acordada:** incluye el arranque mínimo real de Laravel, React/Vite y Horizon, `/api/health`, locks de dependencias y comprobaciones de infraestructura. NMX-002/003 amplían esas bases; no se espera cerrar H0 en un día.
+- `make up` construye PHP e inicia PostgreSQL, Redis y Mailpit; `make setup` instala dependencias, prepara la BD con el rol de migraciones e inicia API, frontend y Horizon. No hay tablas de negocio ni semillas en NMX-001.
+- En Windows sin GNU Make, `./nomix.ps1 <comando>` ejecuta las mismas operaciones.
 - Rol de PostgreSQL de la aplicación **sin** `BYPASSRLS` y rol separado para migraciones.
 - **Criterios de aceptación:**
   - `make up && make setup` deja la API respondiendo en `http://localhost:8080/api/health` y el frontend en `http://localhost:5173`.
   - `make down` limpia sin errores.
   - No se sube ningún secreto.
+  - Una prueba sobre PostgreSQL real verifica lectura y escritura A/B, contexto transaccional y prohibición de crear tablas o desactivar RLS desde el rol de aplicación.
+  - Los puertos pueden configurarse en `.env` cuando los predeterminados estén ocupados; `down` conserva los volúmenes.
 
 #### NMX-002 — Base del backend Laravel
 - **Impl.:** Claude · **Rev.:** Codex · **Depende de:** NMX-001
-- Laravel instalado en `backend/` con `declare(strict_types=1)` en todo archivo, Pint, PHPStan + Larastan, Pest y la estructura de carpetas `Domain/Application/Infrastructure/Http`.
+- Ampliar el arranque Laravel de NMX-001 en `backend/` con `declare(strict_types=1)` en todo archivo, Pint, PHPStan + Larastan, Pest y la estructura de carpetas `Domain/Application/Infrastructure/Http`.
 - Prueba de arquitectura: `Domain` no usa clases de Laravel ni `float`.
-- Endpoint `GET /api/health`.
+- Mantener el endpoint `GET /api/health` y agregar su prueba con Pest.
 - **Criterios de aceptación:** `make lint` y `make test` pasan; la prueba de arquitectura falla si se agrega un `use Illuminate\...` en `Domain`.
 
 #### NMX-003 — Base del frontend
 - **Impl.:** Codex · **Rev.:** Claude · **Depende de:** NMX-001
-- Vite + React + TypeScript estricto, Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier, Vitest.
+- Ampliar el arranque Vite + React + TypeScript estricto de NMX-001 con Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier, Vitest.
 - Layout base: sidebar, header y área de contenido; modo claro y oscuro.
 - **Criterios de aceptación:** `npm run build`, `npm run lint`, `npm run typecheck` y `npm test` pasan; la página muestra el estado de `/api/health`.
 
@@ -198,7 +203,7 @@ H1 y H2 pueden avanzar en paralelo una vez cerrado H0.
 | 2b | NMX-003 → NMX-004 | Codex | En paralelo con 2a |
 | 3 | Revisiones cruzadas | Ambos | Cada PR lo revisa el otro agente antes de que el dueño del producto lo apruebe |
 
-**Al final del día 1:** H0 cerrado, con CI en verde, `make up` funcionando y los parámetros legales cargados con su estado de verificación.
+**Objetivo del día 1:** NMX-001 implementado y verificado, listo para revisión cruzada. H0 se completa en iteraciones posteriores con NMX-002 a NMX-006; el calendario depende del entorno y las revisiones.
 
 ---
 

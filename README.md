@@ -2,7 +2,7 @@
 
 Plataforma de nómina para empresas en Panamá: planilla quincenal, deducciones de ley (CSS, Seguro Educativo, ISR), XIII mes, vacaciones y liquidaciones, con cálculos trazables al artículo de ley que los respalda.
 
-> **Estado:** documentación lista; la construcción empieza con el ticket `NMX-001`.
+> **Estado:** NMX-001 implementa el entorno local y el arranque mínimo. Los módulos de nómina, autenticación y la CI se construyen en los siguientes tickets.
 
 ## Stack
 
@@ -34,10 +34,45 @@ Las reglas de trabajo para Claude y Codex están en [AGENTS.md](AGENTS.md).
 
 ## Desarrollo local
 
-Disponible a partir de `NMX-001`:
+Requiere Docker con contenedores Linux y Docker Compose v2 o superior. PHP, Composer y Node se ejecutan dentro de contenedores. Primera instalación: conexión a Internet para imágenes y dependencias.
+
+Linux/macOS/WSL con GNU Make:
 
 ```bash
-cp .env.example .env
 make up
 make setup
 ```
+
+Windows PowerShell, desde la carpeta del repositorio (no necesita Make):
+
+```powershell
+.\nomix.ps1 up
+.\nomix.ps1 setup
+```
+
+`up` genera `.env` con claves aleatorias si falta, construye PHP y espera a PostgreSQL/Redis. `setup` instala los locks de Composer/npm, prepara la tabla técnica de migraciones y arranca API, frontend y Horizon. Todavía no existen migraciones de negocio ni datos semilla.
+
+| Servicio | Dirección predeterminada |
+|---|---|
+| Frontend | http://localhost:5173 |
+| API (estado del proceso) | http://localhost:8080/api/health |
+| Correo de pruebas Mailpit | http://localhost:8025 |
+
+Todas las publicaciones de puertos se limitan a `127.0.0.1`. El panel de Horizon permanece cerrado hasta implementar autenticación y permisos.
+
+**Puertos ocupados:** ejecuta primero `make env` o `.\nomix.ps1 env`, edita `API_PORT`, `POSTGRES_PORT` u otros puertos en `.env`, y continúa con `up` / `setup`. Por ejemplo: `API_PORT=8082` y `POSTGRES_PORT=5433`. No cambies los puertos internos de los contenedores. El frontend usa `/api` con proxy, por lo que no necesita cambiar su URL de API.
+
+**Comprobaciones y apagado:**
+
+```powershell
+.\nomix.ps1 lint
+.\nomix.ps1 test
+.\nomix.ps1 status
+.\nomix.ps1 down
+```
+
+Los equivalentes son `make lint`, `make test`, `make status` y `make down`. `down` elimina los contenedores y la red del proyecto, **conservando los datos y las dependencias en volúmenes**. Para volver a iniciar, ejecuta `up` y `setup`. Ambos pueden repetirse.
+
+En NMX-001, `lint` comprueba Compose, Composer, sintaxis PHP, `strict_types` y TypeScript; `test` prueba roles y RLS contra PostgreSQL real, API directa y proxy, Redis, SMTP, Horizon y el build de React. Pint/PHPStan/Pest se añaden en NMX-002; ESLint/Prettier/Vitest en NMX-003; CI en NMX-004.
+
+Consulta [la guía del entorno local](docs/nomix/08_entorno_local.md) para versiones, permisos, persistencia y solución de problemas.

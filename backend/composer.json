@@ -1,0 +1,31 @@
+{
+    "name": "nomix/backend",
+    "type": "project",
+    "description": "API de Nomix",
+    "license": "proprietary",
+    "require": {
+        "php": "~8.5.0",
+        "ext-bcmath": "*",
+        "ext-pdo_pgsql": "*",
+        "ext-redis": "*",
+        "laravel/framework": "^13.0",
+        "laravel/horizon": "^5.0"
+    },
+    "autoload": {
+        "psr-4": { "App\\": "app/" }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "lint": "@php tests/Infrastructure/lint.php"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "preferred-install": "dist"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
