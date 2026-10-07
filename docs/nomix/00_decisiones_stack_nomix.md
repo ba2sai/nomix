@@ -22,7 +22,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 
 | # | Tema | Decisión | Alternativa descartada | Justificación |
 |---|---|---|---|---|
-| D-01 | Backend | **Laravel 11+ / PHP 8.3** | NestJS | Se reutiliza la lógica tributaria panameña (SS, SE, ISR, liquidaciones) en lugar de reescribirla. Laravel ya incluye colas (Horizon), autenticación (Sanctum), autorización, migraciones y generación de PDFs. |
+| D-01 | Backend | **Laravel 11+ / PHP 8.3** | NestJS | Un solo framework cubre API, colas (Horizon), autenticación (Sanctum), autorización, migraciones y generación de PDFs/Excel, lo que reduce la complejidad del MVP. Tiene librerías maduras de decimales exactos (`brick/math`, `bcmath`). **Nota:** no existe código PHP de PlaniFácil que reutilizar; la lógica fiscal se modela desde la legislación (ver sección 4). |
 | D-02 | Frontend | **React 18 + Vite + TypeScript (SPA)** | Next.js | Es una aplicación autenticada de uso interno: no necesita SEO ni SSR. El build estático se sirve con Nginx, sin operar un servidor Node en producción. Menor superficie de ataque. |
 | D-03 | Autenticación | **Laravel Sanctum (SPA con cookies `httpOnly` + CSRF)** + 2FA desde el inicio | OAuth2 / Passport | No se guardan tokens en el navegador. OAuth2 solo hará falta si se expone una API a terceros (fase posterior). |
 | D-04 | Infraestructura | **Docker Compose** con CI/CD y *rolling updates* | Kubernetes / Swarm | K8s agrega complejidad que el MVP no justifica. Se mantienen imágenes versionadas y configuración 12-factor para migrar después. |
@@ -42,14 +42,36 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 3. **Multi-inquilino:** RLS en PostgreSQL más `TenantScope` en la aplicación (defensa en profundidad).
 4. **Sin estado en contenedores:** archivos y reportes van a S3 o volúmenes montados.
 
-## 4. Supuestos y Riesgos Abiertos
+## 4. Fuente de la Lógica Fiscal y Laboral
+
+**No se dispone del código fuente de PlaniFácil.** Los documentos `01`–`07` de `docs/` describen su comportamiento observado, pero no son fuente de verdad legal. Toda regla de cálculo se extrae de la normativa panameña vigente:
+
+| Dominio | Fuente normativa |
+|---|---|
+| Salarios, jornadas, sobretiempo, vacaciones, XIII mes, prima de antigüedad, indemnizaciones y liquidaciones | Código de Trabajo de Panamá y normas del MITRADEL |
+| Cuotas de Seguro Social (obrero y patronal) y riesgos profesionales | Ley Orgánica de la CSS y sus reformas (incluida la reforma de 2025) |
+| Seguro Educativo | Normativa vigente del Seguro Educativo |
+| Impuesto sobre la Renta (ISR) de asalariados | Código Fiscal y reglamentación de la DGI |
+| Protección de datos personales | Ley 81 de 2019 y su reglamento |
+
+### 4.1 Reglas para modelar la lógica legal
+
+1. **Trazabilidad:** cada regla en código cita su fuente (ley, artículo y fecha de vigencia) en un catálogo de reglas (`RULE-xxx`).
+2. **Vigencia por fecha:** tasas, topes y tramos (CSS, SE, ISR) se guardan como tablas parametrizadas con `vigente_desde` / `vigente_hasta`, nunca como constantes en el código. Así se recalculan periodos pasados con la norma de su momento.
+3. **Verificación de tasas:** las tasas que aparecen en la ingeniería inversa (p. ej. CSS 9.75% / 12.25%, SE 1.25% / 1.50%) son `OBSERVED` en PlaniFácil y **deben verificarse** contra la legislación vigente antes de usarse.
+4. **Casos de prueba legales:** cada regla tiene pruebas unitarias con ejemplos calculados a mano y documentados (casos normales, límites y casos especiales).
+5. **Validación profesional:** un abogado laboral o contador idóneo revisa el catálogo de reglas antes de salir a producción.
+6. **Contraste opcional:** cuando sea posible, comparar resultados con planillas reales de PlaniFácil para detectar diferencias, entendiendo que la norma prevalece sobre el sistema anterior.
+
+## 5. Supuestos y Riesgos Abiertos
 
 | ID | Supuesto / Riesgo | Cómo se resuelve |
 |---|---|---|
-| R-01 | Los documentos `01`–`07` de `docs/` son ingeniería inversa de PlaniFácil; **puede que no exista acceso a su código fuente PHP**. Si solo hay especificación, "reutilizar" la lógica significa reimplementarla en Laravel a partir de la especificación. | Validar con casos de prueba contra resultados conocidos de PlaniFácil antes de dar por buena cada fórmula. |
+| R-01 | **Confirmado:** no hay código fuente de PlaniFácil. La lógica fiscal se modela desde cero a partir de la legislación, lo que aumenta el esfuerzo y el riesgo de error de la Fase 1. | Aplicar las reglas de la sección 4.1, con validación profesional y pruebas legales por regla. |
+| R-03 | La legislación cambia (reformas de la CSS, tablas de ISR). | Tablas con vigencia por fecha y un responsable de seguimiento normativo. |
 | R-02 | Se asume que el equipo tiene experiencia en PHP/Laravel. | Si no es así, revisar D-01 antes de iniciar la Fase 1. |
 
-## 5. Documentos Relacionados
+## 6. Documentos Relacionados
 
 - [01_propuesta_mejora_planifacil.md](01_propuesta_mejora_planifacil.md): modernización, UI/UX, lógica de negocio y seguridad.
 - [02_vision_producto_nomix_factor_wow.md](02_vision_producto_nomix_factor_wow.md): visión de producto.

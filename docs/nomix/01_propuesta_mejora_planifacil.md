@@ -58,7 +58,7 @@ graph TD
 
 | Componente | Selección Recomendada | Alternativa Considerada | ¿Por qué esta decisión? (Rationale) |
 |---|---|---|---|
-| **Backend Framework** | **Laravel 11+ / PHP 8.3 (Clean Arch / DDD)** | Node.js (NestJS) — descartado | Reutilización de los algoritmos matemáticos y legales existentes en PHP, pero refactorizados bajo arquitectura limpia con Type Hinting, Enums y DTOs estricto. Evita reescribir desde cero la compleja lógica tributaria panameña. |
+| **Backend Framework** | **Laravel 11+ / PHP 8.3 (Clean Arch / DDD)** | Node.js (NestJS) — descartado | Un solo framework cubre API, colas, autenticación, autorización y generación de PDFs/Excel. Arquitectura limpia con Type Hinting, Enums y DTOs estrictos. No hay código PHP de PlaniFácil que reutilizar: la lógica tributaria se modela desde la legislación panameña (ver `00_decisiones_stack_nomix.md`, sección 4). |
 | **Frontend Framework** | **React 18 + Vite + TypeScript (SPA)** | Next.js / Vue 3 + Inertia.js — descartados | Elimina definitivamente la dependencia de `<iframe>`. Brinda tipado estricto para evitar errores en campos de nómina y permite renderizado reactivo e instantáneo. Al ser una aplicación autenticada de uso interno no requiere SEO ni SSR; el build estático se sirve con Nginx sin operar un servidor Node. |
 | **Diseño UI / CSS** | **Tailwind CSS + Shadcn UI / Radix UI** | Bootstrap 5 | Shadcn/Tailwind permite construir interfaces modernas, accesibles, totalmente responsivas (móvil/desktop) y personalizables con baja sobrecarga de bundle CSS. |
 | **Base de Datos** | **PostgreSQL 16 (UTF-8)** | MySQL 8.0 | PostgreSQL ofrece un manejo superior de tipos numéricos exactos (`NUMERIC`/`DECIMAL` para cálculos de centavos en planilla), transacciones complejas e indexación JSONB para configuraciones de acreedores. |
@@ -106,6 +106,8 @@ graph LR
 - Los cálculos de Seguro Social (9.75% / 12.25%), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
 
 ### 3.2 Estrategia de Modernización de Lógica
+
+> **Fuente de verdad:** no se dispone del código fuente de PlaniFácil. Las fórmulas se extraen del Código de Trabajo, la Ley Orgánica de la CSS, el Código Fiscal (ISR) y la normativa del Seguro Educativo, con tasas y tramos parametrizados por fecha de vigencia. Los porcentajes citados en este documento provienen de PlaniFácil (`OBSERVED`) y deben verificarse contra la legislación vigente. Ver `00_decisiones_stack_nomix.md`, sección 4.
 
 #### A. Patrón Domain Service & Calculation Engine (Pure Functions)
 > **Regla:** toda cifra monetaria usa decimales exactos (`brick/math` o `bcmath`) y `NUMERIC` en PostgreSQL. Nunca `float`.
@@ -219,7 +221,7 @@ gantt
     dateFormat  YYYY-MM-DD
     section Fase 1: Arquitectura & Backend Core
     Estructuración Laravel 11 / DB PostgreSQL / API REST :2026-09-01, 45d
-    Extracción & Testing de Motores Legal/Nómina        :2026-09-15, 45d
+    Modelado de Reglas desde la Ley & Testing Legal     :2026-09-15, 60d
     section Fase 2: Rediseño Frontend & UI/UX
     Layout Responsivo Tailwind + React SPA Client       :2026-10-15, 45d
     Wizard Ficha Colaborador & Live Calculator          :2026-11-01, 30d
@@ -235,5 +237,5 @@ gantt
 
 ## 7. Conclusión y Recomendación Final
 
-La modernización propuesta para **PlaniFácil** no requiere reescribir la valiosa inteligencia de negocios ni las reglas fiscales panameñas que la plataforma ya resuelve correctamente. En su lugar, el plan se enfoca en **desacoplar el frontend del backend**, eliminar la fragilidad del contenedor `<iframe>`, elevar la experiencia de usuario a estándares modernos responsivos y cerrar las brechas de seguridad defensiva y privacidad de datos (Ley 81 de Panamá). La incorporación posterior de **n8n** (post-MVP) completará la solución con el envío masivo de comprobantes, alertas automáticas de RRHH y conectividad B2B con sistemas contables externos.
+Al no disponer del código fuente de **PlaniFácil**, las reglas fiscales y laborales panameñas se modelarán desde la legislación vigente, con trazabilidad por artículo, tablas con vigencia por fecha y validación profesional. Además, el plan se enfoca en **desacoplar el frontend del backend**, eliminar la fragilidad del contenedor `<iframe>`, elevar la experiencia de usuario a estándares modernos responsivos y cerrar las brechas de seguridad defensiva y privacidad de datos (Ley 81 de Panamá). La incorporación posterior de **n8n** (post-MVP) completará la solución con el envío masivo de comprobantes, alertas automáticas de RRHH y conectividad B2B con sistemas contables externos.
 
