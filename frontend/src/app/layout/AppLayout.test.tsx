@@ -1,7 +1,8 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { HEALTHY, mockFetch, renderApp } from '@/test/render';
+import { HEALTHY, mockFetch, mockMatchMedia, renderApp } from '@/test/render';
+import { DESKTOP_MEDIA_QUERY } from './AppLayout';
 
 describe('AppLayout', () => {
   beforeEach(() => {
@@ -84,6 +85,36 @@ describe('AppLayout', () => {
 
       expect(screen.queryByRole('dialog', { name: 'Menú' })).toBeNull();
       expect(trigger).toHaveFocus();
+    });
+
+    it('se cierra y libera el fondo al pasar al ancho de escritorio', async () => {
+      const media = mockMatchMedia();
+      renderApp();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+      expect(screen.getByRole('dialog', { name: 'Menú' })).toBeInTheDocument();
+      expect(document.body.style.pointerEvents).toBe('none');
+
+      media.setMatches(DESKTOP_MEDIA_QUERY, true);
+
+      expect(screen.queryByRole('dialog', { name: 'Menú' })).toBeNull();
+      expect(document.body.style.pointerEvents).not.toBe('none');
+      expect(document.body).not.toHaveAttribute('data-scroll-locked');
+      expect(screen.getByRole('button', { name: 'Activar modo oscuro' })).toBeInTheDocument();
+
+      // Volver a móvil no reabre el menú.
+      media.setMatches(DESKTOP_MEDIA_QUERY, false);
+      expect(screen.queryByRole('dialog', { name: 'Menú' })).toBeNull();
+    });
+
+    it('cancela la suscripción al breakpoint al desmontarse', () => {
+      const media = mockMatchMedia();
+      const { unmount } = renderApp();
+
+      expect(media.listenerCount(DESKTOP_MEDIA_QUERY)).toBe(1);
+      unmount();
+      expect(media.listenerCount(DESKTOP_MEDIA_QUERY)).toBe(0);
     });
 
     it('se abre con el teclado y se cierra al navegar', async () => {

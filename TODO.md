@@ -120,7 +120,9 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 - [x] Commit `3e09b72` en `nmx-003-frontend-base`.
 - [x] Primera revisión cruzada de Codex sobre `3e09b72` (local, `tmp/nmx-003-review.md`): cambios solicitados con 3 hallazgos P2.
 - [x] Correcciones aplicadas (ver "Ronda de revisión 1").
-- [ ] Segunda revisión de Codex.
+- [x] Segunda revisión de Codex sobre `925bb9f` (`tmp/nmx-003-review-925bb9f.md`): los 3 hallazgos anteriores quedaron resueltos y hay 1 nuevo P2.
+- [x] Corrección aplicada (ver "Ronda de revisión 2").
+- [ ] Tercera revisión de Codex.
 - [ ] Push y PR contra `nmx-002-backend-base`, con reorientación posterior a `main`.
 - [ ] Aprobación del dueño del producto e integración.
 
@@ -133,6 +135,14 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 | P2: React 19 contradecía el stack aceptado (D-02 decía React 18) | El dueño del producto aprobó React 19. Se registró como D-13 en `00_decisiones_stack_nomix.md` y se actualizaron el resumen y D-02. |
 
 Además, se eliminó un aviso de Vite: `vitest.config.ts` importa `./vite.config.ts` con extensión, como pedirá el cargador nativo de configuración.
+
+**Ronda de revisión 2 (Codex)**
+
+| Hallazgo | Resolución |
+|---|---|
+| P2: al ampliar a escritorio (≥ 768 px) con el menú abierto, `md:hidden` ocultaba el panel pero el diálogo seguía abierto en modo modal: fondo sin punteros ni scroll y fuera del árbol de accesibilidad | Nuevo hook `useOnMediaQueryMatch`: `AppLayout` escucha `(min-width: 768px)` y cierra el menú al entrar en escritorio, y cancela la suscripción al desmontarse. Se cierra desde el listener, sin efectos que observen el estado. 2 pruebas nuevas con un simulador de `matchMedia`: cierre, liberación de punteros, scroll y accesibilidad, sin reapertura al volver a móvil, y limpieza de la suscripción. Ambas fallan si se quita el hook. En Chrome, al ampliar un iframe de 375 a 1024 px, se libera el fondo. |
+
+Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE_POLLING=true`. Antes de revisar en el navegador hay que reiniciar `frontend` o activar el polling.
 
 **Notas para tickets siguientes**
 

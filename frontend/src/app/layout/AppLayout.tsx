@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Outlet } from 'react-router';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { useOnMediaQueryMatch } from '@/lib/hooks/use-on-media-query-match';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
+/** Breakpoint `md` de Tailwind: desde aquí la sidebar es fija y no hay menú móvil. */
+export const DESKTOP_MEDIA_QUERY = '(min-width: 768px)';
+
 export function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
+
+  // Al pasar a escritorio con el menú abierto (p. ej. rotar una tableta), el diálogo se
+  // cierra de verdad: ocultarlo con CSS dejaría el fondo bloqueado e inaccesible.
+  useOnMediaQueryMatch(DESKTOP_MEDIA_QUERY, closeMenu);
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[16rem_1fr]">
@@ -22,11 +33,7 @@ export function AppLayout() {
           className="bg-sidebar text-sidebar-foreground md:hidden"
         >
           <SheetTitle className="sr-only">Menú</SheetTitle>
-          <Sidebar
-            onNavigate={() => {
-              setMenuOpen(false);
-            }}
-          />
+          <Sidebar onNavigate={closeMenu} />
         </SheetContent>
 
         <div className="flex min-w-0 flex-col">
