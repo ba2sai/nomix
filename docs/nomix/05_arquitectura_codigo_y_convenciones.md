@@ -162,7 +162,7 @@ frontend/src/
 |---|---|---|
 | Laravel Pint | Formato PHP | Sin diferencias |
 | PHPStan + Larastan | Análisis estático | Nivel máximo en `app/Domain`; nivel 8 o superior en el resto |
-| Pest | Pruebas unitarias, de integración y de arquitectura | `app/Domain`: 100% de líneas; pruebas de mutación (Infection) en reglas legales |
+| Pest | Pruebas unitarias, de integración y de arquitectura | `app/Domain`: 100% de líneas; pruebas de mutación (Pest Mutate, `composer mutate`) con 100% en el dominio |
 | ESLint + Prettier | Frontend | Sin errores |
 | TypeScript | `strict: true` | Sin errores |
 | Vitest | Pruebas de frontend | Componentes críticos |

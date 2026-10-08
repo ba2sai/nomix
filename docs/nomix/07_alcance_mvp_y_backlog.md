@@ -99,7 +99,7 @@ H1 y H2 pueden avanzar en paralelo una vez cerrado H0.
   - 0.1 + 0.2 = 0.30 exacto.
   - 1,234.56 × 9.75% = 120.37.
   - Quincena de febrero en año bisiesto termina el 29.
-  - Prueba de mutación (Infection) sin mutantes vivos.
+  - Prueba de mutación sin mutantes vivos. Se usa Pest Mutate: Infection 0.35 ya no admite Pest (ver `08_entorno_local.md`).
 
 #### NMX-006 — Parámetros legales con vigencia
 - **Impl.:** Claude · **Rev.:** Codex · **Depende de:** NMX-005

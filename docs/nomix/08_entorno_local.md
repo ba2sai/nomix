@@ -69,6 +69,20 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 `.gitattributes` fija LF en todo el texto (`* text=auto eol=lf`), también en Windows con `core.autocrlf=true`, porque Pint y Prettier exigen LF. Si un checkout antiguo quedó con CRLF, haz commit o guarda tus cambios y, con `git status` limpio, ejecuta `git rm --cached -r . && git reset --hard` para volver a escribir los archivos. **Atención:** `reset --hard` descarta cualquier cambio sin commit.
 
+## Dominio: Money y PayPeriod (NMX-005)
+
+**`App\Domain\Shared\Money\Money`** (sobre `brick/math` 1.0):
+
+- Se crea con `Money::of('1234.56')` o con un entero. Solo acepta decimales simples (`-?\d+(\.\d+)?`): rechaza `1e3`, `1,234.56`, `.5`, espacios y, por tipado estricto, `float`.
+- `plus`, `minus` y `multipliedBy` son exactas y conservan todos los decimales. Solo `dividedBy()` y `round()` redondean, y siempre con una `RoundingPolicy`.
+- `toString()` / `jsonSerialize()` devuelven un string con 2 decimales y **fallan si el monto tiene más**. Obligan a redondear cada concepto de forma explícita antes de mostrarlo o guardarlo.
+
+**`RoundingPolicy`** (RULE-080, `PENDIENTE`): escala final, modo (`HALF_UP`, `HALF_EVEN`, `HALF_DOWN`, `UP`, `DOWN`) y escala intermedia para divisiones. **No tiene valores por defecto en el código.** La propuesta del catálogo (2 decimales, `HALF_UP`, 6 intermedios) se cargará desde `parametros_legales` en NMX-006.
+
+**`App\Domain\Shared\Period\PayPeriod`:** `fortnight(año, mes, 1|2)`, `biweekly(inicio)` (14 días) y `month(año, mes)`, con fechas inclusivas en medianoche UTC. Ofrece `days()` y `contains()`. `thirteenthMonthInstallment()` devuelve la partida del XIII mes (RULE-030) y falla si el período cruza dos partidas, algo posible en meses y bisemanas. `thirteenthMonthInstallments()` las lista todas. Cómo repartir el salario entre partidas no está en el catálogo y queda para el motor de XIII mes.
+
+**Pruebas de mutación:** `composer mutate` (incluido en `make test`) ejecuta Pest Mutate sobre la suite `Unit` y exige 100%. Se usa Pest Mutate en lugar de Infection porque Infection 0.35 ya no tiene adaptador para Pest. Solo se mutan las clases declaradas con `mutates(...)` en las pruebas; `tests/Architecture/MutationCoverageTest.php` falla si una clase de `app/Domain` con código no está declarada. La imagen PHP incluye PCOV 1.0.12 como driver de cobertura.
+
 ## Frontend (NMX-003)
 
 **Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React 19 es una decisión aprobada del stack (D-13 en `00_decisiones_stack_nomix.md`).

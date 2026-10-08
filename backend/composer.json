@@ -8,6 +8,7 @@
         "ext-bcmath": "*",
         "ext-pdo_pgsql": "*",
         "ext-redis": "*",
+        "brick/math": "^1.0",
         "laravel/framework": "^13.0",
         "laravel/horizon": "^5.0"
     },
@@ -34,7 +35,8 @@
             "phpstan analyse --no-progress --memory-limit=1G",
             "phpstan analyse --no-progress --memory-limit=1G --configuration=phpstan-domain.neon"
         ],
-        "test": "pest"
+        "test": "pest",
+        "mutate": "pest --mutate --parallel --testsuite=Unit --min=100"
     },
     "config": {
         "sort-packages": true,

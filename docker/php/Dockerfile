@@ -4,8 +4,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip libpq-dev libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo_pgsql bcmath intl gd zip pcntl \
-    && pecl install redis-6.3.0 \
-    && docker-php-ext-enable redis \
+    && pecl install redis-6.3.0 pcov-1.0.12 \
+    && docker-php-ext-enable redis pcov \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer

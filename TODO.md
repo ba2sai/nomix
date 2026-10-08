@@ -25,6 +25,11 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
 - Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
 
+**NMX-005 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+
+- Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
+- Implementó: Claude. Revisa: Codex.
+
 ## 2. Trabajo realizado
 
 - [x] Analizar la documentación y ordenar el plan de desarrollo.
@@ -88,8 +93,8 @@ Las operaciones de lint y pruebas se ejecutaron con PowerShell. El Makefile se c
 
 **Notas para tickets siguientes**
 
-- Infection (pruebas de mutación) se instala en NMX-005, que lo exige como criterio.
-- La cobertura de 100% en `app/Domain` requiere un driver (PCOV o Xdebug) en la imagen PHP. Se añade en NMX-005 o NMX-004.
+- Pruebas de mutación: resuelto en NMX-005 con Pest Mutate (Infection 0.35 ya no admite Pest).
+- Driver de cobertura: PCOV 1.0.12 añadido a la imagen PHP en NMX-005.
 - Los archivos de prueba de Pest quedan fuera de PHPStan por sus APIs dinámicas. Si se quiere analizarlos, evaluar un plugin de PHPStan para Pest compatible con Pest 5.
 
 ### NMX-003 — Base del frontend (7 de octubre de 2026)
@@ -149,6 +154,36 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - Los tipos de la API se generarán desde OpenAPI (`openapi-typescript`) cuando exista el contrato. Hoy `health` se valida a mano.
 - React Hook Form + Zod y Playwright se incorporan con el primer formulario (NMX-026) y con H3, respectivamente.
 
+### NMX-005 — Money y PayPeriod (7 de octubre de 2026)
+
+**Implementación**
+
+- [x] Rama `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
+- [x] `brick/math` 1.0. `Money`: creación desde string decimal o entero (rechaza notación científica, comas y `float`), `plus`, `minus`, `multipliedBy` exactas, `dividedBy` y `round` según `RoundingPolicy`, comparaciones y serialización a string de 2 decimales que exige redondeo previo.
+- [x] `RoundingPolicy` (RULE-080, `PENDIENTE`) sin valores por defecto en el código; modos `HALF_UP`, `HALF_EVEN`, `HALF_DOWN`, `UP` y `DOWN`. Los valores se cargarán desde `parametros_legales` en NMX-006.
+- [x] `PayPeriod`: quincenas, bisemanas y meses con fechas inclusivas en medianoche UTC, `days()`, `contains()` y partida del XIII mes (RULE-030) mediante `ThirteenthMonthInstallment`.
+- [x] Pruebas de mutación con Pest Mutate (`composer mutate`, incluido en `make test`), 100% exigido. PCOV 1.0.12 añadido a la imagen PHP.
+- [x] Prueba de arquitectura que obliga a declarar con `mutates()` cada clase de `app/Domain` con código.
+- [x] Documentación: `05` §4, criterio de NMX-005 en `07` y sección "Dominio: Money y PayPeriod" en `08`.
+
+**Pruebas**
+
+- [x] Criterios: `0.1 + 0.2 = 0.30` exacto; `1,234.56 × 9.75% = 120.37`; la quincena de febrero termina el 29 en 2024 y 2028; mutación con 0 mutantes vivos (144 de 144 detectados).
+- [x] También se cubren los casos del catálogo RULE-001 (500.00 → 48.75) y RULE-030 (6,000.00 ÷ 12 → 500.00).
+- [x] PHPStan nivel `max` en `Domain` sin errores.
+
+**Decisiones a validar en la revisión**
+
+- [ ] **Pest Mutate en lugar de Infection.** El backlog nombraba Infection, pero su versión 0.35 eliminó el adaptador de Pest. El criterio de fondo ("sin mutantes vivos") se cumple.
+- [ ] **Fechas de las partidas de RULE-030 en código** (`ThirteenthMonthInstallment::endMonth`). Son el calendario legal de la partida, no una tasa, y citan RULE-030. Si se prefiere, pueden pasar a `parametros_legales` en NMX-006.
+- [ ] **`RoundingPolicy` sin valores por defecto.** Hasta NMX-006 no hay una política "oficial" utilizable fuera de las pruebas.
+
+**Publicación, revisión e integración**
+
+- [ ] Commit, push y PR contra `nmx-003-frontend-base`.
+- [ ] Revisión cruzada de Codex, que además escribe pruebas legales desde el catálogo si lo considera necesario.
+- [ ] Aprobación del dueño del producto e integración.
+
 ## 4. Siguientes pasos inmediatos
 
 - [ ] Preparar el PR de NMX-001 con la plantilla del repositorio, criterios de aceptación y evidencia de validación. Definir su rama destino antes de abrirlo, considerando que el desarrollo partió de `ccr-2e3f57bc-j6bsvi`.
@@ -157,7 +192,7 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
 - [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
 - [ ] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real.
-- [ ] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación.
+- [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
 - [ ] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes.
 
 **Resultado esperado para cerrar H0:** entorno reproducible, backend/frontend con herramientas de calidad, CI en verde, objetos monetarios probados y parámetros legales versionados por fecha.
