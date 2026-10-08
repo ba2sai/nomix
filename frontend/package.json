@@ -17,6 +17,7 @@
     "test:integration": "node --test tests/integration/*.test.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.2.0",
     "@radix-ui/react-slot": "^1.4.0",
     "@tanstack/react-query": "^5.104.1",
     "class-variance-authority": "^0.7.1",

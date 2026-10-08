@@ -99,7 +99,7 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 **Implementación**
 
 - [x] Rama `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base` para no generar conflictos en `Makefile`, `nomix.ps1`, `README.md` y `TODO.md`.
-- [x] React actualizado de 18 a 19.3: React Router 8 lo exige. No había código que migrar.
+- [x] React 19.3 en lugar de 18: React Router 8 lo exige. Registrado como decisión D-13 tras la revisión (ver abajo).
 - [x] Dependencias fijadas en `package-lock.json` (0 vulnerabilidades): Tailwind CSS 4.3 (plugin de Vite), React Router 8.4, TanStack Query 5.104, ESLint 10 + typescript-eslint 8 (`strictTypeChecked`), Prettier 3.9 con orden de clases de Tailwind, Vitest 5 + Testing Library + jsdom.
 - [x] shadcn/ui: `components.json`, `cn()` y componentes Button, Card y Badge en `src/components/ui`, adaptados a React 19.
 - [x] Layout: sidebar (fija en escritorio, panel desplegable en móvil), header con título de la ruta y área de contenido. Página 404. Los módulos futuros aparecen como "Pronto", sin enlace.
@@ -117,10 +117,22 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 
 **Publicación, revisión e integración**
 
-- [ ] Commit y push de `nmx-003-frontend-base`.
-- [ ] PR contra `nmx-002-backend-base` y reorientación posterior a `main`.
-- [ ] Revisión cruzada de Codex.
+- [x] Commit `3e09b72` en `nmx-003-frontend-base`.
+- [x] Primera revisión cruzada de Codex sobre `3e09b72` (local, `tmp/nmx-003-review.md`): cambios solicitados con 3 hallazgos P2.
+- [x] Correcciones aplicadas (ver "Ronda de revisión 1").
+- [ ] Segunda revisión de Codex.
+- [ ] Push y PR contra `nmx-002-backend-base`, con reorientación posterior a `main`.
 - [ ] Aprobación del dueño del producto e integración.
+
+**Ronda de revisión 1 (Codex)**
+
+| Hallazgo | Resolución |
+|---|---|
+| P2: `npm run lint` falla tras un checkout en Windows con `core.autocrlf=true` (Prettier exige LF y Git entregaba CRLF) | `.gitattributes` pasa a `* text=auto eol=lf`. Verificado con un worktree nuevo en esta máquina, que tiene `autocrlf=true`. |
+| P2: el menú móvil no movía ni contenía el foco, no cerraba con Escape ni devolvía el foco | Nuevo `Sheet` de shadcn sobre `@radix-ui/react-dialog` 1.2. El botón del header es su `SheetTrigger`. 4 pruebas nuevas de teclado: foco inicial y contenido con Tab/Shift+Tab, fondo inerte, Escape, botón Cerrar y cierre al navegar. Revisado también en Chrome. |
+| P2: React 19 contradecía el stack aceptado (D-02 decía React 18) | El dueño del producto aprobó React 19. Se registró como D-13 en `00_decisiones_stack_nomix.md` y se actualizaron el resumen y D-02. |
+
+Además, se eliminó un aviso de Vite: `vitest.config.ts` importa `./vite.config.ts` con extensión, como pedirá el cargador nativo de configuración.
 
 **Notas para tickets siguientes**
 

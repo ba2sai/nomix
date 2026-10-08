@@ -1,4 +1,6 @@
-* text=auto
+# LF en todo el texto, también en checkouts de Windows con core.autocrlf=true:
+# Pint y Prettier exigen LF, y PowerShell, Docker y Make lo aceptan.
+* text=auto eol=lf
 *.sh text eol=lf
 *.sql text eol=lf
 *.php text eol=lf

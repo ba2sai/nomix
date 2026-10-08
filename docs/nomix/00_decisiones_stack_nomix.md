@@ -10,7 +10,7 @@
 ## 1. Stack Final (MVP)
 
 ```
-Frontend:   React 18 + Vite + TypeScript + Tailwind CSS + Shadcn UI + TanStack Query
+Frontend:   React 19 + Vite + TypeScript + Tailwind CSS + Shadcn UI + TanStack Query
 Backend:    Laravel 11+ / PHP 8.3+ (Clean Arch / DDD ligero) + Laravel Sanctum (modo SPA)
 Datos:      PostgreSQL 16 (Row-Level Security) + Redis (colas con Laravel Horizon)
 Seguridad:  AES-256-GCM + blind index, KMS gestionado, 2FA, auditoría inmutable
@@ -23,7 +23,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 | # | Tema | Decisión | Alternativa descartada | Justificación |
 |---|---|---|---|---|
 | D-01 | Backend | **Laravel 11+ / PHP 8.3+** | NestJS | Un solo framework cubre API, colas (Horizon), autenticación (Sanctum), autorización, migraciones y generación de PDFs/Excel, lo que reduce la complejidad del MVP. Tiene librerías maduras de decimales exactos (`brick/math`, `bcmath`). **Nota:** no existe código PHP de PlaniFácil que reutilizar; la lógica fiscal se modela desde la legislación (ver sección 4). |
-| D-02 | Frontend | **React 18 + Vite + TypeScript (SPA)** | Next.js | Es una aplicación autenticada de uso interno: no necesita SEO ni SSR. El build estático se sirve con Nginx, sin operar un servidor Node en producción. Menor superficie de ataque. |
+| D-02 | Frontend | **React 19 + Vite + TypeScript (SPA)** | Next.js | Es una aplicación autenticada de uso interno: no necesita SEO ni SSR. El build estático se sirve con Nginx, sin operar un servidor Node en producción. Menor superficie de ataque. **Versión:** se aprobó React 19 en lugar de 18 el 7 de octubre de 2026, durante NMX-003 (ver D-13). |
 | D-03 | Autenticación | **Laravel Sanctum (SPA con cookies `httpOnly` + CSRF)** + 2FA desde el inicio | OAuth2 / Passport | No se guardan tokens en el navegador. OAuth2 solo hará falta si se expone una API a terceros (fase posterior). |
 | D-04 | Infraestructura | **Docker Compose** con CI/CD y *rolling updates* | Kubernetes / Swarm | K8s agrega complejidad que el MVP no justifica. Se mantienen imágenes versionadas y configuración 12-factor para migrar después. |
 | D-05 | Base de datos | **PostgreSQL 16 con RLS** | MySQL 8.0 | Tipos numéricos exactos, transacciones robustas, JSONB y aislamiento multi-inquilino a nivel de motor. |
@@ -34,6 +34,7 @@ Respaldos:  WAL-G / pgBackRest → S3 cifrado (PITR)
 | D-10 | Estado en cliente | **Solo TanStack Query**; Zustand si hace falta estado local complejo | TanStack Query + Zustand desde el inicio | Menos dependencias hasta que haya una necesidad real. |
 | D-11 | n8n | **Aplazado a post-MVP** | Incluido en el MVP | No es necesario para el MVP y agrega superficie de ataque en un sistema de nómina. |
 | D-12 | Cloudflare WAF | **Se mantiene** | — | Costo bajo y valor alto en protección y DDoS. |
+| D-13 | Versión de React | **React 19** (con React Router 8) | React 18 con React Router 7 | Aprobada por el dueño del producto el 7 de octubre de 2026, a raíz de la revisión cruzada de NMX-003. React 19 es la versión estable vigente y la que exigen React Router 8 y los componentes actuales de shadcn/ui. Quedarse en 18 obligaba a fijar versiones anteriores desde el primer día. No había código que migrar. |
 
 ## 3. Reglas Técnicas Derivadas
 

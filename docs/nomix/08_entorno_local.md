@@ -65,18 +65,22 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 `tests/Infrastructure/smoke.php` se mantiene como comprobación de roles y RLS sobre PostgreSQL real; su migración a Pest corresponde a NMX-022. El antiguo `tests/Infrastructure/lint.php` se retiró: Pint y PHPStan cubren la sintaxis y `strict_types`.
 
+## Finales de línea
+
+`.gitattributes` fija LF en todo el texto (`* text=auto eol=lf`), también en Windows con `core.autocrlf=true`, porque Pint y Prettier exigen LF. Si un checkout antiguo quedó con CRLF, haz commit o guarda tus cambios y, con `git status` limpio, ejecuta `git rm --cached -r . && git reset --hard` para volver a escribir los archivos. **Atención:** `reset --hard` descarta cualquier cambio sin commit.
+
 ## Frontend (NMX-003)
 
-**Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React se actualizó de 18 a 19 porque React Router 8 lo exige y aún no había código que migrar; así se cumple la regla de usar la versión estable más reciente (`05` §1.1).
+**Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React 19 es una decisión aprobada del stack (D-13 en `00_decisiones_stack_nomix.md`).
 
 **Estructura** (según `05` §3):
 
 - `src/app/`: punto de entrada, providers (`AppProviders`), router con títulos en `handle.title`, layout (`layout/`) y tema (`theme/`).
 - `src/features/<módulo>/`: `api.ts` con los hooks de TanStack Query, `components/` y `pages/`. Hoy: `health` e `inicio`.
-- `src/components/ui/`: Button, Card y Badge de shadcn/ui.
+- `src/components/ui/`: Button, Card, Badge y Sheet de shadcn/ui.
 - `src/lib/`: `cn()`, cliente `apiGet()` con tiempo límite de 5 s y la fábrica del `QueryClient`.
 
-**Layout:** sidebar fija en escritorio y panel desplegable en móvil (menor de 768 px), header con el título de la ruta y área de contenido. Los módulos que aún no existen aparecen en la navegación como "Pronto", sin enlace.
+**Layout:** sidebar fija en escritorio y panel desplegable en móvil (menor de 768 px), header con el título de la ruta y área de contenido. El panel móvil es un `Sheet` sobre el Dialog de Radix: lleva y contiene el foco, deja inerte el fondo, cierra con Escape y devuelve el foco al botón que lo abrió. Los módulos que aún no existen aparecen en la navegación como "Pronto", sin enlace.
 
 **Modo claro y oscuro:** clase `.dark` en `<html>` con tokens de color en `src/app/styles.css`. El tema se guarda en `localStorage` (`nomix-theme`); si no hay valor guardado, se usa la preferencia del sistema. Un script en `index.html` aplica el tema antes del primer pintado para evitar el destello claro.
 
