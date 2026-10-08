@@ -20,12 +20,12 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` porque NMX-001 aún no está integrado. Al fusionar NMX-001, el PR de NMX-002 se reorienta a `main`.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-003 implementado, probado y aprobado por Codex (tercera revisión, sobre `e215155`); pendiente de publicación, aprobación del dueño del producto e integración.**
+**NMX-003 implementado, probado y aprobado por Codex (tercera revisión, sobre `e215155`) y publicado ([PR #3](https://github.com/ba2sai/nomix/pull/3)); pendiente de aprobación del dueño del producto e integración.**
 
 - Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
 - Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
 
-**NMX-005 implementado, probado y aprobado por Codex; pendiente de publicación, aprobación del dueño del producto e integración.**
+**NMX-005 implementado, probado, aprobado por Codex y publicado ([PR #4](https://github.com/ba2sai/nomix/pull/4)); pendiente de aprobación del dueño del producto e integración.**
 
 - Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
 - Implementó: Claude. Revisa: Codex.
@@ -128,7 +128,7 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 - [x] Segunda revisión de Codex sobre `925bb9f` (`tmp/nmx-003-review-925bb9f.md`): los 3 hallazgos anteriores quedaron resueltos y hay 1 nuevo P2.
 - [x] Corrección aplicada (ver "Ronda de revisión 2").
 - [x] Tercera revisión de Codex sobre `e215155`: aprobado.
-- [ ] Push y PR contra `nmx-002-backend-base`, con reorientación posterior a `main`.
+- [x] Push y [PR #3](https://github.com/ba2sai/nomix/pull/3) contra `nmx-002-backend-base`. Se reorienta a `main` al integrar la cadena.
 - [ ] Aprobación del dueño del producto e integración.
 
 **Ronda de revisión 1 (Codex)**
@@ -180,13 +180,13 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 
 **Publicación, revisión e integración**
 
-- [ ] Commit, push y PR contra `nmx-003-frontend-base`.
+- [x] Push y [PR #4](https://github.com/ba2sai/nomix/pull/4) contra `nmx-003-frontend-base`. Se reorienta a `main` al integrar la cadena.
 - [x] Revisión cruzada de Codex: aprobado (comunicado por el dueño del producto el 7 de octubre de 2026).
 - [ ] Aprobación del dueño del producto e integración.
 
 ## 4. Siguientes pasos inmediatos
 
-- [ ] Preparar el PR de NMX-001 con la plantilla del repositorio, criterios de aceptación y evidencia de validación. Definir su rama destino antes de abrirlo, considerando que el desarrollo partió de `ccr-2e3f57bc-j6bsvi`.
+- [x] PR de NMX-001 abierto: [PR #2](https://github.com/ba2sai/nomix/pull/2).
 - [ ] Obtener la revisión de Claude y atender los hallazgos.
 - [ ] Obtener la aprobación del dueño del producto e integrar según el flujo de [AGENTS.md](AGENTS.md). El implementador no fusiona su propio PR.
 - [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
