@@ -7,7 +7,7 @@ Fundación técnica con una API Laravel real, una página React con comprobació
 ## Versiones y dependencias
 
 - PHP 8.5 (`php:8.5-fpm-bookworm`), Composer 2 y Laravel 13. Composer fija las versiones exactas en `backend/composer.lock`.
-- React 18, Vite 8, TypeScript y Node 24 LTS (`frontend/.nvmrc` y `engines`). npm fija las versiones exactas en `frontend/package-lock.json`.
+- React 19, Vite 8, TypeScript y Node 24 LTS (`frontend/.nvmrc` y `engines`). npm fija las versiones exactas en `frontend/package-lock.json`.
 - PostgreSQL 16, Redis 7.4, Nginx 1.28 y Mailpit 1.29.
 - Las imágenes fijan la serie de versiones; una reconstrucción puede incorporar parches. Los digests de producción y su actualización pertenecen a NMX-091.
 
@@ -64,6 +64,33 @@ Los archivos de prueba de Pest quedan fuera de PHPStan, porque sus APIs dinámic
 Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versionado y vacío, y `phpunit.xml` fija `APP_ENV=testing`, caché y sesión en memoria, colas síncronas y correo en arreglo. La conexión a BD sigue siendo PostgreSQL (nunca SQLite), porque las pruebas de aislamiento necesitan RLS.
 
 `tests/Infrastructure/smoke.php` se mantiene como comprobación de roles y RLS sobre PostgreSQL real; su migración a Pest corresponde a NMX-022. El antiguo `tests/Infrastructure/lint.php` se retiró: Pint y PHPStan cubren la sintaxis y `strict_types`.
+
+## Frontend (NMX-003)
+
+**Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React se actualizó de 18 a 19 porque React Router 8 lo exige y aún no había código que migrar; así se cumple la regla de usar la versión estable más reciente (`05` §1.1).
+
+**Estructura** (según `05` §3):
+
+- `src/app/`: punto de entrada, providers (`AppProviders`), router con títulos en `handle.title`, layout (`layout/`) y tema (`theme/`).
+- `src/features/<módulo>/`: `api.ts` con los hooks de TanStack Query, `components/` y `pages/`. Hoy: `health` e `inicio`.
+- `src/components/ui/`: Button, Card y Badge de shadcn/ui.
+- `src/lib/`: `cn()`, cliente `apiGet()` con tiempo límite de 5 s y la fábrica del `QueryClient`.
+
+**Layout:** sidebar fija en escritorio y panel desplegable en móvil (menor de 768 px), header con el título de la ruta y área de contenido. Los módulos que aún no existen aparecen en la navegación como "Pronto", sin enlace.
+
+**Modo claro y oscuro:** clase `.dark` en `<html>` con tokens de color en `src/app/styles.css`. El tema se guarda en `localStorage` (`nomix-theme`); si no hay valor guardado, se usa la preferencia del sistema. Un script en `index.html` aplica el tema antes del primer pintado para evitar el destello claro.
+
+**Calidad:**
+
+| Comando | Qué ejecuta |
+|---|---|
+| `npm run lint` | ESLint (`strictTypeChecked` de typescript-eslint, reglas de hooks y Fast Refresh) con cero avisos, y `prettier --check` |
+| `npm run typecheck` | `tsc --noEmit` con `strict`, `noUncheckedIndexedAccess` y sin variables sin uso |
+| `npm test` | Vitest + Testing Library en jsdom: pruebas de componentes, sin servicios |
+| `npm run test:integration` | Pruebas con Node contra los servicios levantados: Vite, proxy `/api` y bloqueo de Horizon |
+| `npm run format` | Prettier (con orden de clases de Tailwind) y `eslint --fix` |
+
+`make lint` / `make test` (o `nomix.ps1`) ejecutan todos ellos además de los del backend.
 
 ## Diagnóstico
 

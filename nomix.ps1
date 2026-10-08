@@ -37,12 +37,14 @@ try {
             Invoke-Docker compose run --rm --no-deps app composer validate --strict
             Invoke-Docker compose run --rm --no-deps app composer lint
             Invoke-Docker compose run --rm --no-deps frontend npm run lint
+            Invoke-Docker compose run --rm --no-deps frontend npm run typecheck
         }
         'test' {
             Invoke-Docker compose run --rm --no-deps app composer test
             Invoke-Docker compose run --rm --no-deps checks
             Invoke-Docker compose exec -T horizon php artisan horizon:status
             Invoke-Docker compose run --rm --no-deps frontend npm test
+            Invoke-Docker compose run --rm --no-deps frontend npm run test:integration
             Invoke-Docker compose run --rm --no-deps frontend npm run build
         }
         'down' { Invoke-Docker compose down --remove-orphans }

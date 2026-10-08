@@ -20,12 +20,14 @@ lint:
 	$(COMPOSE) run --rm --no-deps app composer validate --strict
 	$(COMPOSE) run --rm --no-deps app composer lint
 	$(COMPOSE) run --rm --no-deps frontend npm run lint
+	$(COMPOSE) run --rm --no-deps frontend npm run typecheck
 
 test:
 	$(COMPOSE) run --rm --no-deps app composer test
 	$(COMPOSE) run --rm --no-deps checks
 	$(COMPOSE) exec -T horizon php artisan horizon:status
 	$(COMPOSE) run --rm --no-deps frontend npm test
+	$(COMPOSE) run --rm --no-deps frontend npm run test:integration
 	$(COMPOSE) run --rm --no-deps frontend npm run build
 
 down:

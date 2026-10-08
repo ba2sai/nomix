@@ -20,6 +20,11 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` porque NMX-001 aún no está integrado. Al fusionar NMX-001, el PR de NMX-002 se reorienta a `main`.
 - Implementó: Claude. Revisa: Codex.
 
+**NMX-003 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+
+- Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
+- Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
+
 ## 2. Trabajo realizado
 
 - [x] Analizar la documentación y ordenar el plan de desarrollo.
@@ -87,13 +92,48 @@ Las operaciones de lint y pruebas se ejecutaron con PowerShell. El Makefile se c
 - La cobertura de 100% en `app/Domain` requiere un driver (PCOV o Xdebug) en la imagen PHP. Se añade en NMX-005 o NMX-004.
 - Los archivos de prueba de Pest quedan fuera de PHPStan por sus APIs dinámicas. Si se quiere analizarlos, evaluar un plugin de PHPStan para Pest compatible con Pest 5.
 
+### NMX-003 — Base del frontend (7 de octubre de 2026)
+
+Por indicación del dueño del producto, lo implementó Claude (en el backlog figuraba Codex). Por tanto, la revisión cruzada la hace Codex.
+
+**Implementación**
+
+- [x] Rama `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base` para no generar conflictos en `Makefile`, `nomix.ps1`, `README.md` y `TODO.md`.
+- [x] React actualizado de 18 a 19.3: React Router 8 lo exige. No había código que migrar.
+- [x] Dependencias fijadas en `package-lock.json` (0 vulnerabilidades): Tailwind CSS 4.3 (plugin de Vite), React Router 8.4, TanStack Query 5.104, ESLint 10 + typescript-eslint 8 (`strictTypeChecked`), Prettier 3.9 con orden de clases de Tailwind, Vitest 5 + Testing Library + jsdom.
+- [x] shadcn/ui: `components.json`, `cn()` y componentes Button, Card y Badge en `src/components/ui`, adaptados a React 19.
+- [x] Layout: sidebar (fija en escritorio, panel desplegable en móvil), header con título de la ruta y área de contenido. Página 404. Los módulos futuros aparecen como "Pronto", sin enlace.
+- [x] Modo claro y oscuro: tokens en `styles.css`, preferencia en `localStorage` o del sistema, y script en `index.html` contra el destello inicial.
+- [x] La página de inicio muestra el estado de `/api/health` con TanStack Query, valida la forma de la respuesta y ofrece "Reintentar" ante error.
+- [x] Scripts: `lint` (ESLint sin avisos + Prettier), `typecheck`, `test` (Vitest), `test:integration` (las pruebas Node de NMX-001, ahora en `tests/integration/`), `format`.
+- [x] `make lint`/`test` y `nomix.ps1` ejecutan typecheck, Vitest y las pruebas de integración.
+- [x] Documentación: `README.md` y sección "Frontend (NMX-003)" en `docs/nomix/08_entorno_local.md`.
+
+**Pruebas**
+
+- [x] `npm run build`, `npm run lint`, `npm run typecheck` y `npm test` (15 pruebas en 4 archivos) pasan.
+- [x] Revisión visual en Chrome: modo claro, modo oscuro, vista móvil de 375 px con menú abierto y estado "Conexión establecida". Consola sin errores ni avisos.
+- [x] Al final de la revisión se borró la preferencia de tema guardada en el navegador.
+
+**Publicación, revisión e integración**
+
+- [ ] Commit y push de `nmx-003-frontend-base`.
+- [ ] PR contra `nmx-002-backend-base` y reorientación posterior a `main`.
+- [ ] Revisión cruzada de Codex.
+- [ ] Aprobación del dueño del producto e integración.
+
+**Notas para tickets siguientes**
+
+- Los tipos de la API se generarán desde OpenAPI (`openapi-typescript`) cuando exista el contrato. Hoy `health` se valida a mano.
+- React Hook Form + Zod y Playwright se incorporan con el primer formulario (NMX-026) y con H3, respectivamente.
+
 ## 4. Siguientes pasos inmediatos
 
 - [ ] Preparar el PR de NMX-001 con la plantilla del repositorio, criterios de aceptación y evidencia de validación. Definir su rama destino antes de abrirlo, considerando que el desarrollo partió de `ccr-2e3f57bc-j6bsvi`.
 - [ ] Obtener la revisión de Claude y atender los hallazgos.
 - [ ] Obtener la aprobación del dueño del producto e integrar según el flujo de [AGENTS.md](AGENTS.md). El implementador no fusiona su propio PR.
 - [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
-- [ ] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro.
+- [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
 - [ ] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real.
 - [ ] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación.
 - [ ] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes.
