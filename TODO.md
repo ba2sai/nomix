@@ -1,13 +1,15 @@
 # TO DO — Nomix
 
-**Actualizado:** 7 de octubre de 2026.  
+**Actualizado:** 8 de octubre de 2026.  
 **Objetivo del MVP:** procesar una planilla quincenal completa, con cálculos correctos, trazables y aislamiento entre empresas.
 
 Este documento resume el avance y ordena los siguientes pasos. Los criterios completos y las dependencias de cada ticket están en el [backlog del MVP](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 ## 1. Estado actual
 
-**NMX-001 implementado, probado y publicado en GitHub; pendiente de revisión cruzada e integración.** H0 todavía no está cerrado.
+**NMX-001 implementado, probado y publicado ([PR #2](https://github.com/ba2sai/nomix/pull/2)); pendiente de revisión cruzada e integración.** H0 todavía no está cerrado.
+
+**Cadena de PRs abiertos, sin fusionar (8 de octubre de 2026):** `main` ← #2 (NMX-001) ← #1 (NMX-002) ← #3 (NMX-003) ← #4 (NMX-005) ← #5 (NMX-004). El orden de fusión es ese, de izquierda a derecha, y cada fusión la aprueba el dueño del producto: el implementador no fusiona su propio PR. Al fusionar cada uno hay que reorientar el siguiente a `main` si GitHub no lo hace solo. El PR de demostración #6 está cerrado.
 
 - Rama: [`nmx-001-monorepo-docker`](https://github.com/ba2sai/nomix/tree/nmx-001-monorepo-docker).
 - Rama de origen: `ccr-2e3f57bc-j6bsvi`.
@@ -27,7 +29,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 
 **NMX-005 implementado, probado, aprobado por Codex y publicado ([PR #4](https://github.com/ba2sai/nomix/pull/4)); pendiente de aprobación del dueño del producto e integración.**
 
-**NMX-004 implementado y simulado en local; pendiente de publicación, verificación en GitHub Actions, revisión cruzada (Codex) e integración.**
+**NMX-004 implementado, verificado en GitHub Actions y publicado ([PR #5](https://github.com/ba2sai/nomix/pull/5)); verificado por Codex en la revisión integral del 8 de octubre; pendiente de revisión cruzada formal del PR, aprobación del dueño del producto e integración.**
 
 - Rama: `nmx-004-ci`, encadenada sobre `nmx-005-money-value-object` para que el CI cubra también la mutación de NMX-005.
 - Implementó: Claude, por indicación del dueño del producto (en el backlog figuraba Codex). Revisa: Codex.
@@ -189,6 +191,23 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [x] Revisión cruzada de Codex: aprobado (comunicado por el dueño del producto el 7 de octubre de 2026).
 - [ ] Aprobación del dueño del producto e integración.
 
+### Verificación integral de Codex (8 de octubre de 2026)
+
+Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-004-ci`). **Resultado: la base implementada pasa; sin fallos funcionales bloqueantes en el alcance comprobado.**
+
+- [x] Instalación desde cero en un worktree y un proyecto Compose independientes, con claves nuevas y puertos alternativos. Todos los servicios saludables.
+- [x] `make lint` y `make test` completos, con código de salida 0. Pest 131 pruebas y 314 aserciones; Vitest 20 pruebas; 2 pruebas de integración; build correcto.
+- [x] Mutación: 144 mutantes, puntuación 100% y sin supervivientes. La ejecución completa registró un timeout puntual en el mutante `078f041cf79e915b` (`ThirteenthMonthInstallment.php`, línea 78); repetido de forma aislada, quedó probado sin timeout.
+- [x] Cobertura de líneas de `app/Domain`: 100%. La primera medición dio 98,9% porque el filtro de la configuración base incluía además `AppServiceProvider`; con un alcance limitado a `app/Domain` marca 100%.
+- [x] PostgreSQL con RLS real, Redis, Mailpit y Horizon (con un trabajo real procesado). Composer y npm sin vulnerabilidades conocidas.
+- [x] Contraste independiente: `1234.56 × 0.0975 = 120.369600` y, con HALF_UP, `120.37`. Coincide con el catálogo; no convierte RULE-080 en una regla validada.
+- [x] Contraste con el stack, la arquitectura, los criterios del backlog y las reglas RULE-001, RULE-030 y RULE-080. React 19 coincide con D-13.
+- [x] Verificado en GitHub: el CI en verde del commit y el CI en rojo de la demostración.
+
+**Límites que reconoce el informe:** las pruebas RLS verifican infraestructura y roles con una tabla efímera y no sustituyen las pruebas de aislamiento de los futuros endpoints de negocio. No hubo revisión visual nueva en navegador, y el flujo E2E completo de nómina sigue pendiente del hito correspondiente. RULE-080 continúa `PENDIENTE`.
+
+**Pendiente derivado:** acotar la cobertura a `app/Domain` en la configuración de Pest cuando se exija el 100% en un paso del CI. Hoy el 100% se comprueba con la mutación, no con un umbral de cobertura.
+
 ### NMX-004 — Integración continua (8 de octubre de 2026)
 
 **Implementación**
@@ -204,12 +223,17 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [x] Simulación en un worktree limpio, con otro proyecto de Compose y otros puertos para no tocar el entorno de desarrollo: construcción, `setup`, `lint` y `test` en verde en 2,1 minutos.
 - [x] Criterio de aceptación en local: una variable sin uso hace fallar `lint` (ESLint) y una prueba Pest fallida hace fallar `test`; ambas terminan con código distinto de cero.
 
-**Pendiente en GitHub**
+**Verificación en GitHub (8 de octubre de 2026)**
 
-- [ ] Push y PR contra `nmx-005-money-value-object`; comprobar el check en verde.
-- [ ] Demostrar el criterio en GitHub: PR temporal con un error, comprobar el check en rojo, y luego cerrarlo y borrar la rama.
-- [ ] Proteger `main` exigiendo el check **CI / Lint y pruebas** (configuración del dueño del repositorio).
-- [ ] Revisión cruzada de Codex, aprobación del dueño del producto e integración.
+- [x] Push y [PR #5](https://github.com/ba2sai/nomix/pull/5) contra `nmx-005-money-value-object`. [CI #1](https://github.com/ba2sai/nomix/actions/runs/37775752854) en **verde** en 5 min 51 s: imagen PHP, `setup`, lint, Pest (131), mutación al 100%, RLS, Horizon, Vitest, integración y build.
+- [x] Demostración del criterio de aceptación: [PR #6](https://github.com/ba2sai/nomix/pull/6) (borrador, con una variable sin uso añadida a propósito). [CI #2](https://github.com/ba2sai/nomix/actions/runs/37775991435) en **rojo**: falló en el paso de lint (`'demoUnused' is assigned a value but never used`, ESLint), las pruebas no se ejecutaron y el entorno se apagó igualmente.
+- [x] PR #6 cerrado sin fusionar y rama `nmx-004-ci-demo-rojo` borrada del remoto y del equipo local.
+- [ ] Proteger `main` exigiendo el check **CI / Lint y pruebas** (configuración del dueño del repositorio). Codex no pudo comprobar si ya está protegida: la API respondió 403.
+- [ ] Revisión cruzada formal de Codex sobre el PR #5, aprobación del dueño del producto e integración.
+
+**Mejora opcional:** `docker/build-push-action` sube en cada ejecución un artefacto con el registro de construcción de Docker (sin secretos). Se desactiva con `DOCKER_BUILD_RECORD_UPLOAD: false`.
+
+**Los PRs #1 a #5 no ejecutan el CI hasta que el workflow llegue a sus ramas:** el check solo existe en `nmx-004-ci`. Empezará a correr en todos al integrarse la cadena o al reorganizarlos sobre esta rama.
 
 ## 4. Siguientes pasos inmediatos
 
@@ -218,7 +242,7 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [ ] Obtener la aprobación del dueño del producto e integrar según el flujo de [AGENTS.md](AGENTS.md). El implementador no fusiona su propio PR.
 - [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
 - [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
-- [x] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. Implementado y simulado en local; falta verificarlo en GitHub (ver §3).
+- [x] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. Implementado y verificado en GitHub: check en verde y demostración en rojo; falta revisión formal, protección de `main` e integración (ver §3).
 - [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
 - [ ] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes.
 
