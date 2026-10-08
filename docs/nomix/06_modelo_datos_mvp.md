@@ -62,14 +62,18 @@ Tasas y valores del catálogo de reglas, con vigencia.
 | `id` | uuid | |
 | `codigo` | text | p. ej. `CSS_PATRONAL_SALARIO` |
 | `rule_id` | text | p. ej. `RULE-002` |
-| `valor` | numeric(14,6) | nullable si se usa `valor_json` |
-| `valor_json` | jsonb | nullable; para tablas como los tramos de ISR |
-| `vigente_desde` | date | |
-| `vigente_hasta` | date | nullable = vigente |
+| `valor` | numeric(14,6) | nullable si se usa `valor_json`; exactamente uno de los dos |
+| `valor_json` | jsonb | nullable; para tablas como los tramos de ISR. Los números van como string para no pasar por `float` |
+| `vigente_desde` | date | nullable = vigente desde antes de lo documentado (p. ej. la cuota patronal histórica de 12.25%) |
+| `vigente_hasta` | date | nullable = vigente hoy |
 | `estado_verificacion` | text | `CONFIRMADO_SECUNDARIO`, `PARCIAL`, `PENDIENTE`, `VALIDADO` |
 | `fuente` | text | Ley, artículo, enlace |
 
-Restricción: no puede haber dos vigencias que se crucen para el mismo `codigo`.
+Restricciones (migración `create_parametros_legales_table`, NMX-006):
+- `parametros_legales_vigencia_sin_cruce`: `EXCLUDE USING gist (codigo WITH =, daterange(vigente_desde, vigente_hasta, '[]') WITH &&)`. Dos vigencias del mismo `codigo` no pueden cruzarse; los extremos abiertos cuentan como infinitos.
+- Índice único `(codigo, vigente_desde) NULLS NOT DISTINCT`: identidad de cada fila para el seeder.
+- `CHECK` de formato de `rule_id` (`RULE-000`), de los estados admitidos, de "valor o tabla, no ambos" y de `vigente_hasta >= vigente_desde`.
+- Es una tabla global: sin `empresa_id` ni RLS. Los valores los carga `ParametrosLegalesSeeder` con el rol de migraciones (`migrate --seed`); los códigos están en `App\Domain\Shared\Legal\LegalParameterCode`.
 
 ### `feriados`, `salarios_minimos`, `bancos`
 Catálogos nacionales con vigencia (RULE-021, RULE-060) y la lista de bancos con su código ACH.

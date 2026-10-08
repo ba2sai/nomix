@@ -11,6 +11,8 @@ it('declara con mutates() cada clase de Domain con código', function (): void {
     // Tipos sin código ejecutable que mutar.
     $withoutMutableCode = [
         'App\Domain\Shared\DomainException',
+        'App\Domain\Shared\Legal\LegalParameterCode',
+        'App\Domain\Shared\Legal\LegalParametersRepository',
         'App\Domain\Shared\Period\PayFrequency',
     ];
     $root = dirname(__DIR__, 2);

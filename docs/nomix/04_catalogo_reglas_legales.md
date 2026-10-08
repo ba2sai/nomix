@@ -26,7 +26,7 @@ Este documento es la **fuente de verdad legal** del motor de nómina. Ver la sec
 ### 0.2 Reglas de implementación (obligatorias)
 
 1. Cada regla vive en código con su ID (`RULE-xxx`) en un comentario o atributo, y el cálculo devuelve una **traza** (regla, fórmula, entradas, resultado) para el *Inspection Drawer*.
-2. Tasas, topes y tramos se guardan en la tabla `parametros_legales` con `vigente_desde` / `vigente_hasta`. **Nunca como constantes.**
+2. Tasas, topes y tramos se guardan en la tabla `parametros_legales` con `vigente_desde` / `vigente_hasta`. **Nunca como constantes.** Los valores de este catálogo los carga `ParametrosLegalesSeeder` (NMX-006) y los códigos están en `App\Domain\Shared\Legal\LegalParameterCode`; si cambia aquí un valor, un estado o una vigencia, cambia el seeder en el mismo PR.
 3. Todo cálculo monetario usa decimales exactos (`brick/math`). Nunca `float`.
 4. Cada regla tiene pruebas con los casos de la sección final de cada regla. Las pruebas las escribe el agente que **no** implementó la regla.
 5. Si una regla cambia de estado o de valor, se actualiza este documento en el mismo PR.

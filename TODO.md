@@ -34,6 +34,11 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-004-ci`, encadenada sobre `nmx-005-money-value-object` para que el CI cubra también la mutación de NMX-005.
 - Implementó: Claude, por indicación del dueño del producto (en el backlog figuraba Codex). Revisa: Codex.
 
+**NMX-006 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+
+- Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
+- Implementó: Claude. Revisa: Codex.
+
 - Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
 - Implementó: Claude. Revisa: Codex.
 
@@ -235,6 +240,40 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 
 **Los PRs #1 a #5 no ejecutan el CI hasta que el workflow llegue a sus ramas:** el check solo existe en `nmx-004-ci`. Empezará a correr en todos al integrarse la cadena o al reorganizarlos sobre esta rama.
 
+### NMX-006 — Parámetros legales con vigencia (8 de octubre de 2026)
+
+**Implementación**
+
+- [x] Rama `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
+- [x] Migración `parametros_legales` (tabla global, sin `empresa_id` ni RLS, según `06` §3): `EXCLUDE USING gist` sobre `(codigo, daterange(vigente_desde, vigente_hasta, '[]'))`, índice único `(codigo, vigente_desde) NULLS NOT DISTINCT` y `CHECK` de formato de `rule_id`, estados admitidos, "valor o tabla" y orden de fechas. `vigente_desde` pasa a nullable ("desde antes de lo documentado").
+- [x] Dominio `App\Domain\Shared\Legal`: `LegalParameters` (parámetros vigentes a una fecha; `value()`, `table()`, `get()`, `all()`), `LegalParameter`, `LegalParameterCode` (31 códigos, cada uno cita su regla), `VerificationStatus`, `LegalParametersRepository::forDate()` y `LegalParameterException`. Sin `float`: los valores son strings decimales.
+- [x] Infraestructura: `DatabaseLegalParametersRepository` y `LegalParameterRecord` (sin cast `decimal`, que pasa por `float`), enlazados en `AppServiceProvider`.
+- [x] `ParametrosLegalesSeeder`: 34 filas con **todos** los valores del catálogo `04` (RULE-001 a 007, 010 a 012, 020 a 022, 030, 040, 050 a 052 y 080), con su estado y su fuente. Idempotente. `make setup` y el CI ejecutan `migrate --seed` con el rol de migraciones.
+- [x] `PayPeriod::thirteenthMonthInstallments()` deja de usar un bucle `while` (commit aparte, `refactor(nmx-005)`): bajo el mutante de `next()` el bucle no terminaba y la mutación lo detectaba solo por tiempo, que es el timeout que Codex vio en su verificación. Un período dura como máximo un mes, así que toca a lo sumo la partida del inicio y la del fin.
+- [x] Documentación: `04` §0.2 (el seeder refleja el catálogo), `06` (restricciones y nullable) y `08` (sección "Parámetros legales").
+
+**Pruebas**
+
+- [x] Criterios de aceptación: `forDate('2026-10-15')` → `0.132500`, `forDate('2027-03-01')` → `0.142500` y `forDate('2025-03-31')` → `0.122500`, más los bordes 2025-04-01, 2027-02-28 y 2029-03-01. La BD rechaza dos vigencias cruzadas (`parametros_legales_vigencia_sin_cruce`), también una abierta. Pedir un parámetro sin vigencia lanza `LegalParameterException` con el código y la fecha.
+- [x] 18 pruebas contra PostgreSQL real con el rol de aplicación, revertidas por transacción (`DatabaseTransactions`; `RefreshDatabase` no sirve porque ese rol no puede crear tablas). Comprueban además que todos los códigos del enum están sembrados, las `CHECK`, la idempotencia del seeder y que ningún parámetro está `VALIDADO`.
+- [x] Pruebas de dominio con mutación al 100%. Los mutantes que agotan el tiempo en la corrida completa cambian de una corrida a otra y, ejecutados uno a uno, quedan detectados sin agotar el tiempo: es carga de la máquina.
+- [x] `$this->seed()` de Laravel exige Mockery, que no está instalado; las pruebas ejecutan el seeder directamente desde el contenedor.
+
+**Decisiones a validar en la revisión**
+
+- [ ] `vigente_desde` nullable (`06` lo tenía obligatorio): el catálogo no documenta el inicio de varias tasas (p. ej. la patronal histórica de 12.25%) y poner una fecha sería inventarla.
+- [ ] `ISR_GASTOS_REPRESENTACION_TARIFA` vigente desde `2010-07-01`: el catálogo dice "julio de 2010"; se tomó el día 1 y queda anotado en `fuente`.
+- [ ] RULE-007 se siembra solo como rango de referencia (`RIESGO_PROFESIONAL_TASA_MINIMA/MAXIMA`, `PARCIAL`); la tasa real es por empresa (H2). RULE-060 no se siembra: es la tabla `salarios_minimos`, pendiente de la tabla oficial. RULE-053, 054, 070 y 090 no tienen valores numéricos.
+- [ ] `jsonb` no conserva el orden de las claves: las tablas (`tramos`) se leen por clave, nunca por posición. Los números dentro de las tablas van como string.
+- [ ] El calendario de partidas del XIII mes sigue en código (`ThirteenthMonthInstallment`), como quedó abierto en NMX-005; solo se siembra `XIII_DIVISOR`.
+- [ ] `RoundingPolicy` (NMX-005) todavía no se construye desde `REDONDEO_POLITICA`; lo hará el primer ticket del motor que la necesite (NMX-011 o NMX-017).
+- [ ] El rol de aplicación conserva DML sobre `parametros_legales` por los privilegios por defecto. Revocar `INSERT/UPDATE/DELETE` a ese rol, de modo que solo el migrador cambie tasas, queda propuesto para NMX-024 o NMX-091.
+
+**Publicación, revisión e integración**
+
+- [ ] Commit, push y PR contra `nmx-004-ci`.
+- [ ] Revisión cruzada de Codex, aprobación del dueño del producto e integración.
+
 ## 4. Siguientes pasos inmediatos
 
 - [x] PR de NMX-001 abierto: [PR #2](https://github.com/ba2sai/nomix/pull/2).
@@ -244,7 +283,7 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
 - [x] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. Implementado y verificado en GitHub: check en verde y demostración en rojo; falta revisión formal, protección de `main` e integración (ver §3).
 - [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
-- [ ] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes.
+- [x] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes. Implementado y probado; falta publicación, revisión e integración (ver §3).
 
 **Resultado esperado para cerrar H0:** entorno reproducible, backend/frontend con herramientas de calidad, CI en verde, objetos monetarios probados y parámetros legales versionados por fecha.
 
