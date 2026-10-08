@@ -20,7 +20,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` porque NMX-001 aún no está integrado. Al fusionar NMX-001, el PR de NMX-002 se reorienta a `main`.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-003 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+**NMX-003 implementado, probado y aprobado por Codex (tercera revisión, sobre `e215155`); pendiente de publicación, aprobación del dueño del producto e integración.**
 
 - Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
 - Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
@@ -122,7 +122,7 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 - [x] Correcciones aplicadas (ver "Ronda de revisión 1").
 - [x] Segunda revisión de Codex sobre `925bb9f` (`tmp/nmx-003-review-925bb9f.md`): los 3 hallazgos anteriores quedaron resueltos y hay 1 nuevo P2.
 - [x] Corrección aplicada (ver "Ronda de revisión 2").
-- [ ] Tercera revisión de Codex.
+- [x] Tercera revisión de Codex sobre `e215155`: aprobado.
 - [ ] Push y PR contra `nmx-002-backend-base`, con reorientación posterior a `main`.
 - [ ] Aprobación del dueño del producto e integración.
 
