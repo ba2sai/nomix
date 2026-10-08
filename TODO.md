@@ -15,7 +15,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Mensaje: `feat(nmx-001): incorpora monorepo y entorno Docker local`.
 - Ya existe un arranque técnico; los módulos de negocio, autenticación y cálculos de nómina siguen pendientes.
 
-**NMX-002 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+**NMX-002 implementado, probado y publicado ([PR #1](https://github.com/ba2sai/nomix/pull/1)); pendiente de revisión cruzada (Codex) e integración.**
 
 - Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` porque NMX-001 aún no está integrado. Al fusionar NMX-001, el PR de NMX-002 se reorienta a `main`.
 - Implementó: Claude. Revisa: Codex.
@@ -76,8 +76,8 @@ Las operaciones de lint y pruebas se ejecutaron con PowerShell. El Makefile se c
 
 **Publicación, revisión e integración**
 
-- [ ] Commit y push de `nmx-002-backend-base`.
-- [ ] PR con la plantilla. Destino: `nmx-001-monorepo-docker` hasta que NMX-001 se integre, y luego `main`.
+- [x] Commit `7bbb32a` y push de `nmx-002-backend-base` al remoto `nomix`.
+- [x] PR [#1](https://github.com/ba2sai/nomix/pull/1) con la plantilla, contra `nmx-001-monorepo-docker`. Al integrarse NMX-001 se reorienta a `main`.
 - [ ] Revisión cruzada de Codex.
 - [ ] Aprobación del dueño del producto e integración.
 
