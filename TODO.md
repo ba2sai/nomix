@@ -25,7 +25,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
 - Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
 
-**NMX-005 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+**NMX-005 implementado, probado y aprobado por Codex; pendiente de publicación, aprobación del dueño del producto e integración.**
 
 - Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
 - Implementó: Claude. Revisa: Codex.
@@ -181,7 +181,7 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 **Publicación, revisión e integración**
 
 - [ ] Commit, push y PR contra `nmx-003-frontend-base`.
-- [ ] Revisión cruzada de Codex, que además escribe pruebas legales desde el catálogo si lo considera necesario.
+- [x] Revisión cruzada de Codex: aprobado (comunicado por el dueño del producto el 7 de octubre de 2026).
 - [ ] Aprobación del dueño del producto e integración.
 
 ## 4. Siguientes pasos inmediatos
