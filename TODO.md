@@ -9,7 +9,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 
 **NMX-001 implementado, probado y publicado ([PR #2](https://github.com/ba2sai/nomix/pull/2)); pendiente de revisión cruzada e integración.** H0 todavía no está cerrado.
 
-**Cadena de PRs abiertos, sin fusionar (8 de octubre de 2026):** `main` ← #2 (NMX-001) ← #1 (NMX-002) ← #3 (NMX-003) ← #4 (NMX-005) ← #5 (NMX-004). El orden de fusión es ese, de izquierda a derecha, y cada fusión la aprueba el dueño del producto: el implementador no fusiona su propio PR. Al fusionar cada uno hay que reorientar el siguiente a `main` si GitHub no lo hace solo. El PR de demostración #6 está cerrado.
+**Cadena de PRs abiertos, sin fusionar (8 de octubre de 2026):** `main` ← #2 (NMX-001) ← #1 (NMX-002) ← #3 (NMX-003) ← #4 (NMX-005) ← #5 (NMX-004) ← #7 (NMX-006). El orden de fusión es ese, de izquierda a derecha, y cada fusión la aprueba el dueño del producto: el implementador no fusiona su propio PR. Al fusionar cada uno hay que reorientar el siguiente a `main` si GitHub no lo hace solo. El PR de demostración #6 está cerrado.
 
 - Rama: [`nmx-001-monorepo-docker`](https://github.com/ba2sai/nomix/tree/nmx-001-monorepo-docker).
 - Rama de origen: `ccr-2e3f57bc-j6bsvi`.
@@ -34,7 +34,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-004-ci`, encadenada sobre `nmx-005-money-value-object` para que el CI cubra también la mutación de NMX-005.
 - Implementó: Claude, por indicación del dueño del producto (en el backlog figuraba Codex). Revisa: Codex.
 
-**NMX-006 implementado y probado en local; pendiente de publicación, revisión cruzada (Codex) e integración.**
+**NMX-006 implementado, probado y publicado ([PR #7](https://github.com/ba2sai/nomix/pull/7)), con el CI en verde; pendiente de revisión cruzada (Codex) e integración.**
 
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
 - Implementó: Claude. Revisa: Codex.
@@ -271,7 +271,7 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 
 **Publicación, revisión e integración**
 
-- [ ] Commit, push y PR contra `nmx-004-ci`.
+- [x] Commits `c3ef9d9` (refactor de NMX-005) y `3da0cb3`, push y [PR #7](https://github.com/ba2sai/nomix/pull/7) contra `nmx-004-ci`. Es el primer PR que ejecuta el CI con migración y seeder: [CI #4](https://github.com/ba2sai/nomix/actions) en verde en 5 min 9 s.
 - [ ] Revisión cruzada de Codex, aprobación del dueño del producto e integración.
 
 ## 4. Siguientes pasos inmediatos
