@@ -110,6 +110,21 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 `make lint` / `make test` (o `nomix.ps1`) ejecutan todos ellos además de los del backend.
 
+## Integración continua (NMX-004)
+
+`.github/workflows/ci.yml` se ejecuta en cada pull request (con cualquier rama base, lo que admite PRs encadenados), en cada push a `main` y a mano (`workflow_dispatch`). Un solo job en `ubuntu-24.04` repite la secuencia local:
+
+1. `make env`: `.env` con secretos aleatorios propios de esa ejecución; no se usan secretos del repositorio.
+2. Imagen PHP desde `docker/php/Dockerfile`, con caché de capas de GitHub Actions (equivale al `compose build app` de `make up`).
+3. `docker compose up` de PostgreSQL 16, Redis y Mailpit; luego `make setup`, `make lint` y `make test`.
+4. Ante un fallo, publica los registros de los servicios. Siempre apaga el entorno y borra los volúmenes.
+
+**Por qué Docker Compose y no `services:` de GitHub:** el CI usa la misma imagen PHP 8.5 con PCOV, el mismo script de roles de PostgreSQL (rol de aplicación sin `BYPASSRLS`) y los mismos comandos que cada desarrollador, de modo que un verde en local equivale a un verde en CI.
+
+**Seguridad:** permisos de solo lectura (`contents: read`), checkout sin credenciales persistidas y acciones de terceros fijadas por SHA de commit, con la versión en un comentario. Para actualizar una acción, reemplaza el SHA por el de la nueva etiqueta.
+
+Un paso que falla deja el PR en rojo; `make` se detiene en el primer comando con error. `main` debe protegerse en GitHub exigiendo el check **CI / Lint y pruebas** antes de fusionar. Esta configuración la hace el dueño del repositorio.
+
 ## Diagnóstico
 
 - Estado: `docker compose ps`.

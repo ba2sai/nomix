@@ -27,6 +27,11 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 
 **NMX-005 implementado, probado, aprobado por Codex y publicado ([PR #4](https://github.com/ba2sai/nomix/pull/4)); pendiente de aprobación del dueño del producto e integración.**
 
+**NMX-004 implementado y simulado en local; pendiente de publicación, verificación en GitHub Actions, revisión cruzada (Codex) e integración.**
+
+- Rama: `nmx-004-ci`, encadenada sobre `nmx-005-money-value-object` para que el CI cubra también la mutación de NMX-005.
+- Implementó: Claude, por indicación del dueño del producto (en el backlog figuraba Codex). Revisa: Codex.
+
 - Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
 - Implementó: Claude. Revisa: Codex.
 
@@ -184,6 +189,28 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [x] Revisión cruzada de Codex: aprobado (comunicado por el dueño del producto el 7 de octubre de 2026).
 - [ ] Aprobación del dueño del producto e integración.
 
+### NMX-004 — Integración continua (8 de octubre de 2026)
+
+**Implementación**
+
+- [x] `.github/workflows/ci.yml`: se ejecuta en cada `pull_request` (cualquier base, por los PRs encadenados), en cada push a `main` y con `workflow_dispatch`. Cancela ejecuciones obsoletas del mismo PR.
+- [x] Repite la secuencia local sobre Docker Compose: `make env` (secretos efímeros), imagen PHP con caché de GitHub Actions, PostgreSQL 16, Redis y Mailpit, y luego `make setup`, `make lint` y `make test` (incluye la mutación de NMX-005). Ante un fallo publica los registros de los servicios; siempre apaga el entorno y borra los volúmenes.
+- [x] Seguridad: `permissions: contents: read`, checkout sin credenciales persistidas y acciones fijadas por SHA (`actions/checkout` v7.0.1, `docker/setup-buildx-action` v4.4.1, `docker/build-push-action` v7.4.0).
+- [x] Documentación: sección "Integración continua" en `08` y `README.md`.
+
+**Pruebas locales**
+
+- [x] `actionlint` sin errores.
+- [x] Simulación en un worktree limpio, con otro proyecto de Compose y otros puertos para no tocar el entorno de desarrollo: construcción, `setup`, `lint` y `test` en verde en 2,1 minutos.
+- [x] Criterio de aceptación en local: una variable sin uso hace fallar `lint` (ESLint) y una prueba Pest fallida hace fallar `test`; ambas terminan con código distinto de cero.
+
+**Pendiente en GitHub**
+
+- [ ] Push y PR contra `nmx-005-money-value-object`; comprobar el check en verde.
+- [ ] Demostrar el criterio en GitHub: PR temporal con un error, comprobar el check en rojo, y luego cerrarlo y borrar la rama.
+- [ ] Proteger `main` exigiendo el check **CI / Lint y pruebas** (configuración del dueño del repositorio).
+- [ ] Revisión cruzada de Codex, aprobación del dueño del producto e integración.
+
 ## 4. Siguientes pasos inmediatos
 
 - [x] PR de NMX-001 abierto: [PR #2](https://github.com/ba2sai/nomix/pull/2).
@@ -191,7 +218,7 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [ ] Obtener la aprobación del dueño del producto e integrar según el flujo de [AGENTS.md](AGENTS.md). El implementador no fusiona su propio PR.
 - [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
 - [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
-- [ ] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real.
+- [x] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. Implementado y simulado en local; falta verificarlo en GitHub (ver §3).
 - [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
 - [ ] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes.
 
