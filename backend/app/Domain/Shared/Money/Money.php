@@ -118,6 +118,31 @@ final readonly class Money implements JsonSerializable, Stringable
     }
 
     /**
+     * Indica si el monto cabe en `$scale` decimales sin redondear: 1.50 cabe en 1, 1.505 no cabe en 2.
+     *
+     * @param  int<0, max>  $scale
+     */
+    public function fitsScale(int $scale): bool
+    {
+        try {
+            $this->amount->toScale($scale);
+
+            return true;
+        } catch (RoundingNecessaryException) {
+            return false;
+        }
+    }
+
+    /**
+     * Valor exacto con todos sus decimales, p. ej. "120.3696". Para trazas de cálculo,
+     * donde importa ver el resultado antes de redondear; para mostrar montos usa toString().
+     */
+    public function toDecimalString(): string
+    {
+        return $this->amount->toString();
+    }
+
+    /**
      * Representación con exactamente 2 decimales, p. ej. "1234.50".
      *
      * @throws MoneyException si el monto tiene más de 2 decimales significativos.

@@ -36,7 +36,8 @@
             "phpstan analyse --no-progress --memory-limit=1G --configuration=phpstan-domain.neon"
         ],
         "test": "pest",
-        "mutate": "pest --mutate --parallel --testsuite=Unit --min=100"
+        "mutate": "pest --mutate --parallel --testsuite=Unit --min=100",
+        "coverage": "pest --configuration=phpunit.domain.xml --coverage --min=100"
     },
     "config": {
         "sort-packages": true,

@@ -46,12 +46,13 @@ backend/app/
 │   ├── Shared/
 │   │   ├── Money/Money.php         # Value object sobre brick/math
 │   │   ├── Period/PayPeriod.php    # Quincena, bisemana, mes
-│   │   └── Rules/RuleTrace.php     # Traza de cálculo
+│   │   ├── Legal/LegalParameters.php  # Parámetros legales vigentes a una fecha
+│   │   └── Rules/                  # RuleTrace, TraceInput, RoundingRule (RULE-080)
 │   ├── Payroll/
 │   │   ├── Calculator/             # PayrollCalculator y un calculador por concepto
 │   │   ├── Rules/                  # Una clase por RULE-xxx (CssEmployeeRule, IsrWithholdingStrategy...)
-│   │   ├── Input/                  # DTOs de entrada (snapshot del colaborador, novedades)
-│   │   └── Result/                 # PayrollResult, LineItem
+│   │   ├── Input/                  # PayrollInput, EmployeeSnapshot, EmployerSnapshot, Novelty
+│   │   └── Result/                 # PayrollResult, LineItem, Concept, Category, PayrollWarning
 │   ├── ThirteenthMonth/
 │   ├── Vacations/
 │   └── Termination/                # Liquidaciones

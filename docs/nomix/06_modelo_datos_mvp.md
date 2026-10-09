@@ -183,11 +183,11 @@ Una fila por colaborador en la planilla, con el **snapshot** de los datos usados
 | Columna | Tipo | Notas |
 |---|---|---|
 | `planilla_colaborador_id`, `empresa_id` | uuid | |
-| `concepto` | text | `salario`, `hora_extra`, `css_obrero`, `se_obrero`, `isr`, `descuento`, `css_patronal`... |
+| `concepto` | text | `salario`, `hora_extra`, `css_obrero`, `se_obrero`, `isr`, `descuento`, `css_patronal`... La lista completa y su categoría están en `App\Domain\Payroll\Result\Concept` (NMX-010) |
 | `categoria` | text | `ingreso`, `deduccion_ley`, `descuento`, `carga_patronal` |
 | `monto` | numeric(14,2) | |
 | `rule_id` | text | `RULE-xxx` |
-| `traza` | jsonb | Fórmula, entradas y resultado |
+| `traza` | jsonb | Fórmula, entradas y resultado (`RuleTrace::toArray()`). Las entradas sensibles, como el salario base, se guardan sin valor |
 
 ### `vacaciones` y `liquidaciones`
 - `vacaciones`: `colaborador_id`, `periodo_desde`, `periodo_hasta`, `dias_ganados`, `dias_tomados`, `fecha_inicio_goce`, `planilla_id`.

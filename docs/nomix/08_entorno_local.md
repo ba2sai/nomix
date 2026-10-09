@@ -97,6 +97,36 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 **Pruebas:** las de dominio (`tests/Unit/Domain/Shared/Legal`) entran en la mutación. Las de BD (`tests/Feature/Legal`) corren contra PostgreSQL real con el rol de aplicación, dentro de una transacción que se revierte (`DatabaseTransactions`); no usan `RefreshDatabase` porque el rol de aplicación no puede crear ni borrar tablas. Cubren los criterios de NMX-006, las restricciones de la tabla y la idempotencia del seeder.
 
+## Motor de nómina: contratos (NMX-010)
+
+Los tipos que comparten todas las reglas de H1. No calculan nada todavía: fijan qué entra al motor, qué sale y cómo se explica cada monto.
+
+**Traza (`App\Domain\Shared\Rules`):**
+
+- `RuleTrace::calculated(ruleId, fórmula, entradas, resultadoSinRedondear, RoundingRule)`: un cálculo legal. Siempre cita su `RULE-xxx` y redondea con RULE-080. Guarda el resultado antes y después de redondear.
+- `RuleTrace::entered(descripción, entradas, monto)`: un monto que no sale de una regla, como un bono registrado como novedad. No cita regla ni redondea, y exige 2 decimales como máximo.
+- `TraceInput`: entradas de tipo monto, cantidad o parámetro legal (con su regla, estado y vigencia). **Una entrada sensible (el salario base) sale de `toArray()` sin valor** (AGENTS.md, regla 7).
+- `RoundingRule::from(LegalParameters)`: la política de RULE-080 construida desde `REDONDEO_POLITICA`. Conserva el parámetro, así que **toda traza que redondea queda marcada como pendiente mientras RULE-080 siga `PENDIENTE`**.
+- `pendingParameterCodes()` y `allowsProduction()` dicen qué parámetros siguen `PENDIENTE` y si todos están `VALIDADO`.
+
+**Entrada (`App\Domain\Payroll\Input`):** `PayrollInput` reúne `PayPeriod`, fecha de pago, `EmployeeSnapshot` (salario base mensual, periodicidad, horas semanales, jornada, ingreso, terminación y gastos de representación), `EmployerSnapshot` (tasa de Riesgos Profesionales) y `Novelty` (novedades de tiempo con cantidad o de dinero con monto).
+
+- La periodicidad del colaborador debe coincidir con la del período.
+- El período y la fecha de pago van por separado porque el "mes de cuota" de RULE-002 está pendiente de confirmar.
+- El perfil de ISR y los descuentos a terceros se agregan en NMX-013 y NMX-015.
+
+**Resultado (`App\Domain\Payroll\Result`):** `LineItem` = `Concept` + `RuleTrace`.
+
+- El monto es el resultado de la traza, así que línea y traza no pueden discrepar.
+- El monto nunca es negativo y cabe en 2 decimales.
+- Cada `Concept` pertenece a una `Category` (`ingreso`, `deduccion_ley`, `descuento`, `carga_patronal`).
+- `PayrollResult` suma bruto, deducciones de ley, descuentos, neto y costo patronal a partir de líneas ya redondeadas, y conserva los avisos (`PayrollWarning`), que no bloquean el cálculo.
+- `toArray()` produce la forma de `planilla_colaboradores` y `planilla_lineas`.
+
+**Pruebas sin base de datos:** `tests/Support/LegalCatalog::forDate()` arma `LegalParameters` con las mismas filas que siembra la base de datos. Esas filas viven en `Database\Seeders\CatalogoLegal`, una clase pura que usa también `ParametrosLegalesSeeder`. `tests/Support/Parameters` crea parámetros y políticas de redondeo a medida.
+
+**Cobertura:** `composer coverage` (incluido en `make test` y en el CI) mide la suite `Unit` solo sobre `app/Domain` con `phpunit.domain.xml` y exige 100% de líneas, el criterio común de H1.
+
 ## Frontend (NMX-003)
 
 **Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React 19 es una decisión aprobada del stack (D-13 en `00_decisiones_stack_nomix.md`).

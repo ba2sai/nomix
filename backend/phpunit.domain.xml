@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cobertura del dominio (composer coverage): la suite Unit medida solo sobre app/Domain.
+     Criterio de H1: 100% de líneas, sin base de datos. phpunit.xml sigue siendo la
+     configuración de todas las pruebas. -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         cacheDirectory="storage/framework/cache/phpunit-domain"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app/Domain</directory>
+        </include>
+    </source>
+</phpunit>

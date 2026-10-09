@@ -14,6 +14,8 @@ it('declara con mutates() cada clase de Domain con código', function (): void {
         'App\Domain\Shared\Legal\LegalParameterCode',
         'App\Domain\Shared\Legal\LegalParametersRepository',
         'App\Domain\Shared\Period\PayFrequency',
+        'App\Domain\Payroll\Input\WorkShift',
+        'App\Domain\Payroll\Result\Category',
     ];
     $root = dirname(__DIR__, 2);
     $testSources = '';
