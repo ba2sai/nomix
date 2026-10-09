@@ -3,7 +3,7 @@
 **Documento:** `07_alcance_mvp_y_backlog.md`  
 **Proyecto:** **Nomix - Nómina inteligente**  
 **Estado:** `ACCEPTED` (el backlog se actualiza a medida que avanza el trabajo)  
-**Equipo:** Claude y Codex (implementan y se revisan entre sí) + el dueño del producto (aprobación final)
+**Responsable humano:** el dueño del producto es el único desarrollador y decide cuándo integrar. Claude y Codex son agentes de implementación y revisión técnica; sus comentarios no equivalen a una aprobación formal de GitHub.
 
 ---
 
@@ -55,7 +55,9 @@ H1 y H2 pueden avanzar en paralelo una vez cerrado H0.
 
 ## 3. Backlog
 
-**Formato:** cada ticket tiene un responsable sugerido para implementar (**Impl.**) y otro para revisar (**Rev.**). La propuesta inicial reparte así: Claude implementa el motor y el backend de dominio, y Codex escribe sus pruebas legales y revisa; Codex implementa infraestructura y frontend, y Claude revisa. Se puede cambiar por ticket.
+**Formato:** cada ticket tiene un agente sugerido para implementar (**Impl.**) y otro para revisión técnica (**Rev.**). Esta asignación orienta el trabajo, pero no implica que haya un segundo desarrollador humano ni una aprobación formal obligatoria. En solitario, el responsable humano puede implementar, revisar y fusionar su PR con el CI requerido en verde, tras resolver los hallazgos bloqueantes.
+
+En tickets legales, prepara los casos desde el catálogo antes de implementar la regla. Cuando esté disponible, el agente revisor puede escribirlos sin inspeccionar la implementación; si no, el responsable humano los deriva directamente del catálogo. No se inventan tasas ni criterios legales.
 
 ### H0 — Fundación
 
@@ -201,9 +203,9 @@ H1 y H2 pueden avanzar en paralelo una vez cerrado H0.
 | 1 | NMX-001 | Codex | Bloquea todo lo demás. Debe cerrarse primero. |
 | 2a | NMX-002 → NMX-005 → NMX-006 | Claude | En secuencia, una rama y un PR por ticket |
 | 2b | NMX-003 → NMX-004 | Codex | En paralelo con 2a |
-| 3 | Revisiones cruzadas | Ambos | Cada PR lo revisa el otro agente antes de que el dueño del producto lo apruebe |
+| 3 | Revisión técnica e integración | Agente revisor disponible + responsable humano | Solicitar análisis independiente cuando esté disponible; el responsable revisa el diff y puede integrar su propio PR con CI verde, sin aprobación formal de otra cuenta |
 
-**Objetivo del día 1:** NMX-001 implementado y verificado, listo para revisión cruzada. H0 se completa en iteraciones posteriores con NMX-002 a NMX-006; el calendario depende del entorno y las revisiones.
+**Objetivo del día 1:** NMX-001 implementado y verificado, listo para revisión técnica. H0 se completa en iteraciones posteriores con NMX-002 a NMX-006; el calendario depende del entorno y las verificaciones.
 
 ---
 

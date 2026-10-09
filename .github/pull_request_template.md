@@ -27,4 +27,7 @@ NMX-XXX — <!-- título del ticket -->
 ## Revisión
 
 - Implementó: <!-- Claude / Codex -->
-- Revisa: <!-- el otro agente -->
+- Revisión técnica independiente: <!-- agente y resultado, o "No disponible; revisó el responsable" -->
+- Hallazgos y resolución: <!-- enlace al comentario o resumen; "Ninguno" si aplica -->
+- CI / Lint y pruebas: <!-- verde en el commit <SHA> -->
+- Decisión de integración: <!-- responsable del producto; solo integrar con CI verde y sin hallazgos bloqueantes -->

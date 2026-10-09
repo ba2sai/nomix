@@ -137,7 +137,7 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 **Seguridad:** permisos de solo lectura (`contents: read`), checkout sin credenciales persistidas y acciones de terceros fijadas por SHA de commit, con la versión en un comentario. Para actualizar una acción, reemplaza el SHA por el de la nueva etiqueta.
 
-Un paso que falla deja el PR en rojo; `make` se detiene en el primer comando con error. `main` debe protegerse en GitHub exigiendo el check **CI / Lint y pruebas** antes de fusionar. Esta configuración la hace el dueño del repositorio.
+Un paso que falla deja el PR en rojo; `make` se detiene en el primer comando con error. Protege `main` exigiendo que los cambios entren mediante PR y que el check **CI / Lint y pruebas** esté verde; no exijas aprobaciones de otra cuenta mientras el dueño sea el único desarrollador humano. El dueño puede revisar y fusionar su propio PR, pero no debe integrar con el check rojo, pendiente o ausente. La configuración la hace el dueño del repositorio.
 
 ## Diagnóstico
 
@@ -151,7 +151,7 @@ Un paso que falla deja el PR en rojo; `make` se detiene en el primer comando con
 
 ## Entrega y revisión
 
-Rama `nmx-001-monorepo-docker`, creada desde `ccr-2e3f57bc-j6bsvi`. Antes de integrar: revisión cruzada por Claude y aprobación del dueño del producto según `AGENTS.md`. Este ticket no configura todavía GitHub Actions.
+Rama `nmx-001-monorepo-docker`, creada desde `ccr-2e3f57bc-j6bsvi`. Antes de integrar: revisión técnica según `AGENTS.md` y CI en verde una vez que el workflow esté disponible. El responsable humano decide la integración; no se requiere una aprobación formal de otra cuenta si es el único desarrollador. Este ticket no configura todavía GitHub Actions.
 
 ### Verificación local del 7 de octubre de 2026
 
@@ -163,4 +163,4 @@ Rama `nmx-001-monorepo-docker`, creada desde `ccr-2e3f57bc-j6bsvi`. Antes de int
 - GNU Make no está instalado en el host. Se verificó la sintaxis del Makefile con `make --dry-run` dentro de la imagen PHP; las operaciones equivalentes se ejecutaron realmente con PowerShell.
 - Puertos de esta máquina: frontend `5173`, API `8082`, PostgreSQL `5433`, Redis `6379`, Mailpit `8025`. Los valores alternativos están solo en `.env`, porque otros proyectos ocupan `8080` y `5432`.
 - `.env`, cachés de Laravel y `frontend/dist` quedan excluidos de Git.
-- Revisión cruzada por Claude: pendiente. Este registro no sustituye esa revisión.
+- Revisión técnica de agente: pendiente al momento de esta verificación histórica.

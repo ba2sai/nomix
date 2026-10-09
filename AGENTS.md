@@ -38,12 +38,12 @@ Laravel (PHP 8.3+) · React + Vite + TypeScript · PostgreSQL 16 con RLS · Redi
 2. Rama: `nmx-<número>-<descripcion-corta>`. Commits: Conventional Commits con el ticket como alcance, p. ej. `feat(nmx-005): add Money value object`.
 3. Antes de abrir el PR, ejecuta y deja en verde: `make lint` y `make test`.
 4. Completa la plantilla del PR, incluidos los criterios de aceptación del ticket y las reglas legales tocadas.
-5. **Revisión cruzada:** el PR lo revisa el otro agente (Claude revisa a Codex y viceversa) antes de que el dueño del producto lo apruebe.
-6. **Pruebas legales por el revisor:** en los tickets del motor legal, las pruebas de `backend/tests/Legal/` las escribe el agente que **no** implementó la regla, a partir del catálogo, sin mirar la implementación primero.
+5. **Revisión técnica:** antes de integrar, pide una revisión independiente al otro agente cuando esté disponible y registra sus hallazgos y resolución en el PR. Es una revisión técnica, no una aprobación formal de otra cuenta de GitHub. Si eres el único desarrollador humano, no bloquees la integración esperando un segundo aprobador: revisa tú mismo el diff con la lista de abajo y deja constancia en el PR cuando no haya revisión independiente disponible.
+6. **Pruebas legales:** antes de implementar una regla, deriva los casos de `backend/tests/Legal/` del catálogo. Si hay otro agente disponible, pídele que prepare esas pruebas sin inspeccionar la implementación. Si no lo hay, el responsable las deriva directamente del catálogo antes de escribir la regla; no inventes casos ni completes huecos normativos.
 7. Si cambias una regla, una tasa o el modelo de datos, actualiza el documento correspondiente en el mismo PR.
-8. Nunca hagas *merge* de tu propio PR ni fusiones con CI en rojo.
+8. El responsable del producto puede fusionar su propio PR cuando sea el único desarrollador humano. No se requiere una aprobación formal de otra cuenta. **Nunca** fusiones si el check requerido **CI / Lint y pruebas** está rojo, pendiente o ausente, ni si quedan hallazgos bloqueantes sin resolver. Si cambia un cálculo, una tasa o el modelo de datos, verifica además los criterios legales y de aislamiento aplicables. En repositorios con más de un desarrollador humano, conserva la aprobación independiente antes de fusionar.
 
-## Al revisar un PR del otro agente
+## Lista de revisión técnica
 
 Verifica, en este orden:
 1. ¿Los cálculos coinciden con el catálogo y con los casos de prueba? Recalcula al menos un caso a mano.
@@ -51,6 +51,7 @@ Verifica, en este orden:
 3. ¿Hay prueba de aislamiento entre empresas si el cambio toca datos?
 4. ¿Algún dato sensible queda en claro (BD, logs, respuestas, snapshots)?
 5. ¿Se cumplen los criterios de aceptación del ticket?
+6. ¿El check **CI / Lint y pruebas** terminó en verde para el commit exacto que se va a fusionar?
 
 ## Comandos
 

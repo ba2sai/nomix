@@ -204,6 +204,8 @@ En cada PR y en `main`:
 
 Un PR no se fusiona con CI en rojo.
 
+En el repositorio de un único desarrollador, no se exige una aprobación formal de otra cuenta: el responsable puede fusionar su propio PR después de revisar el diff y resolver hallazgos bloqueantes. La revisión técnica de un agente es independiente como análisis, pero no cuenta como aprobación de GitHub. Protege `main` exigiendo el pull request y el check **CI / Lint y pruebas**, sin exigir aprobaciones que el equipo no puede proporcionar. El check debe estar verde para el commit exacto que se fusiona; no se fusiona si está rojo, pendiente o ausente.
+
 ---
 
 ## 7. Convenciones
