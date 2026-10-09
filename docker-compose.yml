@@ -145,7 +145,7 @@ services:
       <<: *app-environment
       DB_USERNAME: ${DB_MIGRATION_USERNAME:-nomix_migrator}
       DB_PASSWORD: ${DB_MIGRATION_PASSWORD:?Falta DB_MIGRATION_PASSWORD en .env}
-    command: [php, artisan, migrate, --force]
+    command: [php, artisan, migrate, --force, --seed]
 
   checks:
     <<: *php

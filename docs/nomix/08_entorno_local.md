@@ -83,6 +83,20 @@ Las pruebas no leen un `.env` del backend: `backend/.env.testing` está versiona
 
 **Pruebas de mutación:** `composer mutate` (incluido en `make test`) ejecuta Pest Mutate sobre la suite `Unit` y exige 100%. Se usa Pest Mutate en lugar de Infection porque Infection 0.35 ya no tiene adaptador para Pest. Solo se mutan las clases declaradas con `mutates(...)` en las pruebas; `tests/Architecture/MutationCoverageTest.php` falla si una clase de `app/Domain` con código no está declarada. La imagen PHP incluye PCOV 1.0.12 como driver de cobertura.
 
+## Parámetros legales (NMX-006)
+
+**Dominio (`App\Domain\Shared\Legal`):**
+
+- `LegalParameters`: los parámetros vigentes en una fecha. Es la entrada del motor de nómina; se construye con `LegalParameters::on($fecha, $parámetros)` y rechaza parámetros no vigentes en esa fecha o códigos repetidos. `value()` devuelve un string decimal (p. ej. `'0.132500'`), `table()` una tabla (tramos de ISR, escala de indemnización, política de redondeo) y `get()` el parámetro completo con `ruleId`, `status`, vigencia y `source` para las trazas.
+- `LegalParameter`: una fila del catálogo. Valida el formato `RULE-000`, que haya valor o tabla (no ambos), que el valor sea un decimal simple y que la vigencia no termine antes de empezar. Vigencia inclusiva; sin inicio o sin fin significa abierta.
+- `LegalParameterCode`: enum con todos los códigos; cada caso cita su regla. `VerificationStatus`: los estados del catálogo, y solo `VALIDADO` permite producción.
+- `LegalParametersRepository::forDate(DateTimeInterface)`: contrato de carga. Es el `LegalParameters::forDate()` del backlog: no puede ser estático en un dominio sin BD, así que la carga la hace la implementación de `Infrastructure`.
+- Pedir un parámetro sin vigencia lanza `LegalParameterException` con un mensaje que nombra el código y la fecha.
+
+**Infraestructura:** `DatabaseLegalParametersRepository` consulta `parametros_legales` (`LegalParameterRecord`, sin cast `decimal`: pasaría por `float`) y está enlazada al contrato en `AppServiceProvider`. `make setup` ejecuta `migrate --seed` con el rol de migraciones; `ParametrosLegalesSeeder` carga **todos** los valores del catálogo `04` con su estado y su fuente, y es idempotente. Si cambia el catálogo, cambia el seeder en el mismo PR.
+
+**Pruebas:** las de dominio (`tests/Unit/Domain/Shared/Legal`) entran en la mutación. Las de BD (`tests/Feature/Legal`) corren contra PostgreSQL real con el rol de aplicación, dentro de una transacción que se revierte (`DatabaseTransactions`); no usan `RefreshDatabase` porque el rol de aplicación no puede crear ni borrar tablas. Cubren los criterios de NMX-006, las restricciones de la tabla y la idempotencia del seeder.
+
 ## Frontend (NMX-003)
 
 **Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React 19 es una decisión aprobada del stack (D-13 en `00_decisiones_stack_nomix.md`).

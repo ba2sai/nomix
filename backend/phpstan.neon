@@ -10,6 +10,7 @@ parameters:
         - bootstrap/app.php
         - bootstrap/providers.php
         - config
+        - database
         - routes
         # Los archivos de prueba de Pest usan APIs dinámicas que PHPStan no resuelve;
         # se analiza solo el código de soporte.

@@ -76,22 +76,19 @@ final readonly class PayPeriod
     }
 
     /**
-     * Todas las partidas que el período toca, en orden. Cómo repartir el salario entre
-     * ellas no está definido en el catálogo y se resolverá en el motor de XIII mes.
+     * Las partidas que el período toca, en orden: la del inicio y, si es distinta, la del
+     * fin. Un período dura como máximo un mes y una partida cuatro, así que nunca hay más
+     * de dos. Cómo repartir el salario entre ellas no está definido en el catálogo y se
+     * resolverá en el motor de XIII mes.
      *
      * @return non-empty-list<ThirteenthMonthInstallment>
      */
     public function thirteenthMonthInstallments(): array
     {
-        $current = ThirteenthMonthInstallment::forDate($this->start);
-        $installments = [$current];
+        $first = ThirteenthMonthInstallment::forDate($this->start);
+        $last = ThirteenthMonthInstallment::forDate($this->end);
 
-        while (! $current->contains($this->end)) {
-            $current = $current->next();
-            $installments[] = $current;
-        }
-
-        return $installments;
+        return $first->equals($last) ? [$first] : [$first, $last];
     }
 
     private static function untilEndOfMonth(PayFrequency $frequency, DateTimeImmutable $start): self
