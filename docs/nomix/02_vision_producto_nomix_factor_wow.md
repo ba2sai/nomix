@@ -78,7 +78,7 @@ graph TD
 
 ### 📊 6. Simulador Financiero de Contratación y Escenarios de Salida
 - **El WOW:** Herramienta visual e interactiva para Gerentes Generales, CFOs y Directores de RRHH.
-- **Escenario 1 (Contratación):** *"Si quiero contratar a un Ingeniero con salario neto de $2,000, ¿cuál es el costo real total mensual para la empresa contando cargas patronales (CSS 12.25%, SE 1.50%, RP 1.50%, Reserva XIII Mes 8.33%, Reserva Vacaciones 9.09%)?"* -> El sistema da el costo empresarial exacto en segundos ($2,642.50/mes).
+- **Escenario 1 (Contratación):** *"Si quiero contratar a un Ingeniero con salario neto de $2,000, ¿cuál es el costo real total mensual para la empresa contando cargas patronales (CSS patronal, SE, Riesgos Profesionales, reserva de XIII mes y reserva de vacaciones)?"* -> El sistema da el costo empresarial exacto en segundos, usando las tasas vigentes del [catálogo de reglas legales](04_catalogo_reglas_legales.md) (p. ej. CSS patronal 13.25% desde abril de 2025).
 - **Escenario 2 (Liquidación Comparativa):** Compara el costo de terminación por Mutuo Consentimiento vs. Despido con Preaviso en un gráfico visual interactivo.
 
 ---

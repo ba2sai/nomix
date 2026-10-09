@@ -2,7 +2,7 @@
 
 **Documento:** `propuesta_mejora_planifacil.md`  
 **Autor:** Antigravity AI  
-**Estado:** `PROPOSED`  
+**Estado:** `ACCEPTED` (stack cerrado; ver [00_decisiones_stack_nomix.md](00_decisiones_stack_nomix.md))  
 **Referencia Base:** Diagnóstico de Ingeniería Inversa (`01_application_overview.md` - `07_final_reverse_engineering_specification.md`)  
 **Jurisdicción Legal:** República de Panamá (Código de Trabajo, DGI, CSS/SIPE, MITRADEL)
 
@@ -29,19 +29,19 @@ Este documento detalla la propuesta integral de modernización estructurada en 4
 ```mermaid
 graph TD
     subgraph Frontend ["Capa de Presentación (SPA Client)"]
-        SPA["React 18 / Next.js 14+ (TypeScript)"]
+        SPA["React 18 + Vite (TypeScript)"]
         UI["Tailwind CSS + Shadcn UI"]
-        STATE["TanStack Query (React Query) + Zustand"]
+        STATE["TanStack Query (React Query)"]
     end
 
     subgraph API ["Capa de Servicios & API (Backend)"]
-        GATEWAY["API Gateway / Middleware Auth (Laravel Sanctum / OAuth2)"]
+        GATEWAY["API Gateway / Middleware Auth (Laravel Sanctum SPA + 2FA)"]
         PE["Motor de Nómina (PHP 8.3 / Laravel 11 DDD)"]
         QUEUE["Redis Queue + Horizon Workers"]
     end
 
     subgraph Data ["Capa de Datos & Servicios Externos"]
-        DB[(PostgreSQL 16 - UTF8mb4)]
+        DB[(PostgreSQL 16 - UTF-8 + RLS)]
         S3["Almacenamiento de Reportes PDF/ACH (S3 / Encrypted Vault)"]
         BIO["Servicio de Integración Biométrica (Webhooks)"]
     end
@@ -58,11 +58,13 @@ graph TD
 
 | Componente | Selección Recomendada | Alternativa Considerada | ¿Por qué esta decisión? (Rationale) |
 |---|---|---|---|
-| **Backend Framework** | **Laravel 11+ / PHP 8.3 (Clean Arch / DDD)** | Node.js (NestJS) | Reutilización de los algoritmos matemáticos y legales existentes en PHP, pero refactorizados bajo arquitectura limpia con Type Hinting, Enums y DTOs estricto. Evita reescribir desde cero la compleja lógica tributaria panameña. |
-| **Frontend Framework** | **React 18 (Next.js / Vite) + TypeScript** | Vue 3 / Inertia.js | Elimina definitivamente la dependencia de `<iframe>`. Brinda tipado estricto para evitar errores en campos de nómina y permite renderizado reactivo e instantáneo. |
+| **Backend Framework** | **Laravel 11+ / PHP 8.3 (Clean Arch / DDD)** | Node.js (NestJS) — descartado | Un solo framework cubre API, colas, autenticación, autorización y generación de PDFs/Excel. Arquitectura limpia con Type Hinting, Enums y DTOs estrictos. No hay código PHP de PlaniFácil que reutilizar: la lógica tributaria se modela desde la legislación panameña (ver `00_decisiones_stack_nomix.md`, sección 4). |
+| **Frontend Framework** | **React 18 + Vite + TypeScript (SPA)** | Next.js / Vue 3 + Inertia.js — descartados | Elimina definitivamente la dependencia de `<iframe>`. Brinda tipado estricto para evitar errores en campos de nómina y permite renderizado reactivo e instantáneo. Al ser una aplicación autenticada de uso interno no requiere SEO ni SSR; el build estático se sirve con Nginx sin operar un servidor Node. |
 | **Diseño UI / CSS** | **Tailwind CSS + Shadcn UI / Radix UI** | Bootstrap 5 | Shadcn/Tailwind permite construir interfaces modernas, accesibles, totalmente responsivas (móvil/desktop) y personalizables con baja sobrecarga de bundle CSS. |
 | **Base de Datos** | **PostgreSQL 16 (UTF-8)** | MySQL 8.0 | PostgreSQL ofrece un manejo superior de tipos numéricos exactos (`NUMERIC`/`DECIMAL` para cálculos de centavos en planilla), transacciones complejas e indexación JSONB para configuraciones de acreedores. |
-| **Tareas Asíncronas** | **Redis + Laravel Horizon** | Procesamiento Síncrono PHP | La generación de lotes ACH multi-banca, reportes SIPE y PDFs de planillas masivas se mueven a colas en segundo plano, liberando el hilo HTTP y eliminando timeouts. |
+| **Tareas Asíncronas** | **Redis (instancia única en MVP) + Laravel Horizon** | Procesamiento Síncrono PHP | La generación de lotes ACH multi-banca, reportes SIPE y PDFs de planillas masivas se mueven a colas en segundo plano, liberando el hilo HTTP y eliminando timeouts. |
+| **Autenticación** | **Laravel Sanctum (SPA, cookies `httpOnly` + CSRF) + 2FA** | OAuth2 / Passport | No se guardan tokens en el navegador. OAuth2 solo se justifica si se expone una API a terceros. |
+| **Infraestructura** | **Docker Compose + Traefik/NGINX + Cloudflare** | Kubernetes / Swarm | Suficiente para el MVP con CI/CD y *rolling updates*; se evita la complejidad de K8s hasta que se justifique. |
 
 ---
 
@@ -90,7 +92,7 @@ graph LR
 
 #### B. Layout Responsivo Moderno (Sidebar + Content Workspace)
 - Sustituir `#cssmenu` y el `<iframe>` por un layout responsivo estándar con **Sidebar retráctil**, **Header con buscador global (Cmd+K)** y un **Workspace fluido con auto-scroll**.
-- Implementar **Live Preview Calculations**: Al ajustar un salario base u horas extras en la pantalla, mostrar un cálculo en tiempo real de los aportes CSS (9.75%), SE (1.25%) e ISR estimado.
+- Implementar **Live Preview Calculations**: Al ajustar un salario base u horas extras en la pantalla, mostrar un cálculo en tiempo real de los aportes CSS, SE e ISR estimado (calculado en el backend con las tasas vigentes del catálogo `04`).
 
 #### C. Sistema de Feedback y Notificaciones
 - Reemplazar `$.blockUI()` por **Skeleton Loaders** durante la carga de datos y **Sonner / Toast Notifications** para confirmaciones de guardado.
@@ -101,19 +103,24 @@ graph LR
 ## 3. Pillar 3: Lógica de Negocio y Reglas Panamá
 
 ### 3.1 Hallazgos de Lógica Actual (`WF-001` a `WF-004`)
-- Los cálculos de Seguro Social (9.75% / 12.25%), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
+- Los cálculos de Seguro Social (9.75% / 12.25% observados en PlaniFácil; la cuota patronal vigente es 13.25%, ver RULE-002 en `04_catalogo_reglas_legales.md`), Seguro Educativo (1.25% / 1.50%), ISR DGI (tabla progresiva anual / 24 quincenas), XIII Mes (3 partidas) y Liquidaciones (Art. 212, 213, 224, 225) están **mezclados con código HTML/SQL** en archivos procedimentales.
 
 ### 3.2 Estrategia de Modernización de Lógica
 
+> **Fuente de verdad:** no se dispone del código fuente de PlaniFácil. Las fórmulas se extraen del Código de Trabajo, la Ley Orgánica de la CSS, el Código Fiscal (ISR) y la normativa del Seguro Educativo, con tasas y tramos parametrizados por fecha de vigencia. Los porcentajes citados en este documento provienen de PlaniFácil (`OBSERVED`) y deben verificarse contra la legislación vigente. Ver `00_decisiones_stack_nomix.md`, sección 4.
+
 #### A. Patrón Domain Service & Calculation Engine (Pure Functions)
+> **Regla:** toda cifra monetaria usa decimales exactos (`brick/math` o `bcmath`) y `NUMERIC` en PostgreSQL. Nunca `float`.
+
 Aislar las fórmulas de nómina en **Clases puras desacopladas de la base de datos y la vista**, permitiendo Pruebas Unitarias automatizadas (`100% Code Coverage`):
 
 ```php
 // Ejemplo de interfaz de Dominio para Panamá
 interface PanamaTaxCalculatorInterface {
-    public function calculateCSS(float $grossSalary): DeductionResult;
-    public function calculateSE(float $grossSalary): DeductionResult;
-    public function calculateISR(float $annualEstimatedIncome, int $dependents, bool $hasSpouse): DeductionResult;
+    // Money: decimal exacto (brick/math o bcmath). Nunca float.
+    public function calculateCSS(Money $grossSalary): DeductionResult;
+    public function calculateSE(Money $grossSalary): DeductionResult;
+    public function calculateISR(Money $annualEstimatedIncome, int $dependents, bool $hasSpouse): DeductionResult;
     public function calculateLiquidation(Colaborador $colaborador, CausalSalida $causal, DateTime $fechaCese): LiquidationResult;
 }
 ```
@@ -147,14 +154,16 @@ graph TD
 
 | ID | Hallazgo Observado (`FIND-xxx`) | Severidad | Solución Defensiva Propuesta | Impacto de la Mejora |
 |---|---|---|---|---|
-| `FIND-001` | Formularios sin token Anti-CSRF en `app.planifacil.com/empresas/` | **Medium** | Inyección de Middleware Anti-CSRF obligatorio (`X-CSRF-TOKEN`) en todas las peticiones POST/PUT/DELETE. | Previene ataques de falsificación de peticiones en acciones críticas como modificar cuentas ACH o aprobar planillas. |
+| `FIND-001` | Formularios sin token Anti-CSRF en `app.planifacil.com/empresas/` | **Medium** | Protección CSRF de Laravel Sanctum (modo SPA, cookie `XSRF-TOKEN` + cabecera `X-XSRF-TOKEN`) en todas las peticiones POST/PUT/DELETE. | Previene ataques de falsificación de peticiones en acciones críticas como modificar cuentas ACH o aprobar planillas. |
 | `FIND-002` | Faltan cabeceras HTTP de seguridad (CSP, HSTS, X-Frame-Options) | **Low** | Configuración estricta de NGINX/Cloudflare: `Strict-Transport-Security: max-age=31536000`, `X-Frame-Options: DENY`, `Content-Security-Policy`. | Evita ataques de Clickjacking, man-in-the-middle y ejecuciones de scripts no autorizados (XSS). |
 | `FIND-003` | Atributos de Cookie de Sesión inseguros (`Secure`, `HttpOnly`) | **Low** | Forzar `session.cookie_secure = true`, `session.cookie_httponly = true`, `SameSite = Strict`. | Protege las galletas de sesión de ser interceptadas en redes Wi-Fi no cifradas o leídas vía JavaScript malicioso. |
 | `FIND-004` | Identificadores secuenciales expuestos (`id2`, `id_empresa`) propensos a IDOR | **Medium** | 1. Reemplazar IDs enteros por **UUIDv4** o **Hashids**.<br/>2. Imponer `TenantScope Middleware` (Global Scope por `id_empresa` de la sesión). | Garantiza que un usuario de la Empresa A no pueda consultar ni modificar colaboradores de la Empresa B alterando la URL. |
-| **NUEVO** | Datos sensibles de colaboradores almacenados en texto plano | **High** | Cifrado a nivel de aplicación (AES-256-GCM) para campos PII: Cédula, Número de Cuenta Bancaria y Salario Base. | Cumplimiento estricto con la Ley 81 de Protección de Datos Personales de la República de Panamá. |
+| **NUEVO** | Datos sensibles de colaboradores almacenados en texto plano | **High** | Cifrado a nivel de aplicación (AES-256-GCM) para campos PII: Cédula, Número de Cuenta Bancaria y Salario Base, con *blind index* para búsquedas por cédula y claves en KMS. | Cumplimiento estricto con la Ley 81 de Protección de Datos Personales de la República de Panamá. |
 | **NUEVO** | Ausencia de Trail de Auditoría inmutable | **Medium** | Implementar `AuditLogService` que registre: Usuario, Fecha/Hora, IP, Acción, Valor Anterior, Valor Nuevo. | Permite auditorías forenses exigidas por firmas contables y autoridades fiscales (DGI/MITRADEL). |
 
 ## 5. Integración de n8n: Automatización de Workflows y Conectividad Externa
+
+> **Decisión D-11:** n8n queda **aplazado a post-MVP**. Esta sección describe el diseño objetivo para cuando se incorpore (fase posterior al lanzamiento inicial), no el alcance del MVP.
 
 **n8n** (plataforma open-source de orquestación y automatización de flujos de trabajo) tiene un **lugar estratégico y de altísimo valor** en el ecosistema de **PlaniFácil**, actuando como el **motor de integración asíncrono y notificaciones**.
 
@@ -199,7 +208,7 @@ graph TD
    - **Acción n8n:** n8n recibe el payload JSON del asiento contable y lo transforma para enviarlo automáticamente a APIs de sistemas contables como **QuickBooks Online, SAP Business One, Odoo, Zoho Books o Xero**.
 
 ### 5.2 Regla de Frontera: ¿Qué NO debe hacer n8n?
-- ❌ **No calcular impuestos, neto ni prestaciones:** Los cálculos matemáticos del Seguro Social, Seguro Educativo, ISR y Liquidaciones **DEBEN** ser ejecutados de forma determinista y estricta en el Backend Core de PlaniFácil (Laravel/NestJS).
+- ❌ **No calcular impuestos, neto ni prestaciones:** Los cálculos matemáticos del Seguro Social, Seguro Educativo, ISR y Liquidaciones **DEBEN** ser ejecutados de forma determinista y estricta en el Backend Core de PlaniFácil (Laravel).
 - ❌ **No reemplazar la base de datos principal:** n8n no almacena el estado maestro de los colaboradores, solo orquesta mensajes y payloads en tránsito.
 
 ---
@@ -212,13 +221,13 @@ gantt
     dateFormat  YYYY-MM-DD
     section Fase 1: Arquitectura & Backend Core
     Estructuración Laravel 11 / DB PostgreSQL / API REST :2026-09-01, 45d
-    Extracción & Testing de Motores Legal/Nómina        :2026-09-15, 45d
+    Modelado de Reglas desde la Ley & Testing Legal     :2026-09-15, 60d
     section Fase 2: Rediseño Frontend & UI/UX
     Layout Responsivo Tailwind + React SPA Client       :2026-10-15, 45d
     Wizard Ficha Colaborador & Live Calculator          :2026-11-01, 30d
     section Fase 3: Seguridad & Módulos Avanzados
-    Implementación OAuth2 / UUIDs / Cifrado Ley 81      :2026-11-15, 30d
-    Exportadores ACH Multi-Banco & Integración n8n      :2026-12-01, 30d
+    Sanctum SPA + 2FA / UUIDs / Cifrado Ley 81          :2026-11-15, 30d
+    Exportadores ACH Multi-Banco                         :2026-12-01, 30d
     section Fase 4: QA, Migración & Despliegue
     QA Automatizado (PHPUnit + Playwright E2E)          :2027-01-01, 30d
     Migración Gradual & Salida a Producción             :2027-01-15, 30d
@@ -228,5 +237,5 @@ gantt
 
 ## 7. Conclusión y Recomendación Final
 
-La modernización propuesta para **PlaniFácil** no requiere reescribir la valiosa inteligencia de negocios ni las reglas fiscales panameñas que la plataforma ya resuelve correctamente. En su lugar, el plan se enfoca en **desacoplar el frontend del backend**, eliminar la fragilidad del contenedor `<iframe>`, elevar la experiencia de usuario a estándares modernos responsivos y cerrar las brechas de seguridad defensiva y privacidad de datos (Ley 81 de Panamá). La inclusión de **n8n** completa la solución al encargarse del envío masivo de comprobantes, alertas automáticas de RRHH y conectividad B2B con sistemas contables externos.
+Al no disponer del código fuente de **PlaniFácil**, las reglas fiscales y laborales panameñas se modelarán desde la legislación vigente, con trazabilidad por artículo, tablas con vigencia por fecha y validación profesional. Además, el plan se enfoca en **desacoplar el frontend del backend**, eliminar la fragilidad del contenedor `<iframe>`, elevar la experiencia de usuario a estándares modernos responsivos y cerrar las brechas de seguridad defensiva y privacidad de datos (Ley 81 de Panamá). La incorporación posterior de **n8n** (post-MVP) completará la solución con el envío masivo de comprobantes, alertas automáticas de RRHH y conectividad B2B con sistemas contables externos.
 

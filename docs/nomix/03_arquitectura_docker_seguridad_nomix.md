@@ -2,7 +2,7 @@
 
 **Documento:** `arquitectura_docker_seguridad_nomix.md`  
 **Proyecto:** **Nomix - Nómina inteligente**  
-**Estado:** `PROPOSED`  
+**Estado:** `ACCEPTED` (ver [00_decisiones_stack_nomix.md](00_decisiones_stack_nomix.md))  
 
 ---
 
@@ -14,21 +14,20 @@
 graph TD
     subgraph Proxy ["Capa de Red & Seguridad Externa"]
         CF["Cloudflare WAF / DDoS Protection"]
-        NGINX["NGINX Reverse Proxy / Traefik Container (TLS 1.3 / HSTS)"]
+        NGINX["Traefik / NGINX Reverse Proxy (TLS 1.3 / HSTS)"]
     end
 
-    subgraph AppCluster ["Capa de Aplicación (Docker Swarm / Compose / K8s)"]
-        API1["Nomix API Container #1 (Laravel / NestJS)"]
-        API2["Nomix API Container #2 (Laravel / NestJS)"]
-        FRONT["Nomix Web SPA Container (Nginx + React Static)"]
+    subgraph AppCluster ["Capa de Aplicación (Docker Compose en el MVP)"]
+        API1["Nomix API Container #1 (Laravel)"]
+        API2["Nomix API Container #2 (Laravel)"]
+        FRONT["Nomix Web SPA Container (Nginx + React/Vite estático)"]
         WORKER["Laravel Horizon / Redis Queue Workers"]
-        N8N["n8n Automation Engine Container"]
     end
 
     subgraph DataCluster ["Capa de Datos & Respaldos (Clúster HA)"]
         MASTER[("PostgreSQL 16 Primary (Writer)")]
-        REPLICA[("PostgreSQL 16 Standby Replica (Reader)")]
-        REDIS[("Redis Sentinel Cluster (Cache & Sessions)")]
+        REPLICA[("PostgreSQL 16 Standby Replica (Reader) - Fase 2")]
+        REDIS[("Redis (instancia única en MVP; Sentinel en fase posterior)")]
         WALG["WAL-G / pgBackRest Backup Agent"]
         S3[("Encrypted Cloud Vault / S3 Bucket (PITR Backups)")]
     end
@@ -56,17 +55,19 @@ graph TD
 | **Dockerización 100% (Containers)** | **SÍ (Desde el día 1)** | • Paridad total entre Dev, Staging y Producción.<br/>• Despliegues *Zero-Downtime* mediante *Rolling Updates*.<br/>• Facilidad para actualizar parches de seguridad de PHP/PostgreSQL reconstruyendo imágenes etiquetadas. | Avoid: No guardar estado ni subir archivos locales dentro de los contenedores (usar S3/Volumes montados). |
 | **Seguridad de Datos & Cifrado PII** | **SÍ (Obligatorio - Ley 81 Panamá)** | • Cifrado de campos sensibles (Cédulas, Cuentas ACH, Salarios) con **AES-256-GCM** en aplicación.<br/>• *Row-Level Security (RLS)* en PostgreSQL para aislamiento total multi-inquilino.<br/>• Audit trail inmutable. | Avoid: No confiar únicamente en la seguridad de red; aplicar el principio de *Zero Trust* a nivel de API. |
 | **Respaldos Continuos (PITR)** | **SÍ (Esencial en Finanzas)** | • Permite restaurar la DB al segundo exacto antes de un fallo o desastre (*Point-in-Time Recovery*).<br/>• Exportación de WALs cifrados en tiempo real hacia S3 distante. | Avoid: Los dumps sencillos (`pg_dump`) 1 vez al día no bastan para nómina; se pierden datos del día activo. |
-| **Clúster de DB (Primary / Replica)** | **SÍ (Primary + Standby Read Replica)** | • Lecturas pesadas (reportes, PDFs, exportaciones ACH) se delegan al Read-Replica.<br/>• Failover rápido si el primario falla. | Avoid: Evitar clústeres Multi-Master hiper-complejos (ej. CockroachDB) en el MVP; añaden latencia de consenso innecesaria. |
+| **Clúster de DB (Primary / Replica)** | **MVP: Primary con PITR. Réplica de lectura en Fase 2** | • Lecturas pesadas (reportes, PDFs, exportaciones ACH) se delegan al Read-Replica.<br/>• Failover rápido si el primario falla. | Avoid: Evitar clústeres Multi-Master hiper-complejos (ej. CockroachDB) en el MVP; añaden latencia de consenso innecesaria. |
 
 ---
 
 ## 3. Plan de Seguridad de Datos & Cumplimiento (Data Protection Strategy)
 
 ### 3.1 Cifrado a Nivel de Aplicación (Field-Level Encryption)
-Los datos de alta sensibilidad se cifran antes de ser insertados en la base de datos usando una clave maestra administrada por la aplicación (AWS KMS o HashiCorp Vault):
+Los datos de alta sensibilidad se cifran antes de ser insertados en la base de datos usando una clave maestra administrada en un KMS gestionado (**AWS KMS**):
 - `colaboradores.cedula` $\rightarrow$ Encrypted Blob
 - `colaboradores.numero_cuenta_ach` $\rightarrow$ Encrypted Blob
 - `colaboradores.salario_base` $\rightarrow$ Encrypted Decimal
+
+Los campos cifrados no se pueden filtrar ni ordenar en SQL. Para buscar por cédula se guarda además un **blind index** (hash con clave, p. ej. HMAC-SHA256) en una columna separada.
 
 ### 3.2 Aislamiento Multi-Inquilino (Multi-Tenant Isolation)
 Uso de **PostgreSQL Row-Level Security (RLS)** para forzar que cada consulta SQL esté acotada al `tenant_id` del usuario autenticado:

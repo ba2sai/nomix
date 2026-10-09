@@ -1,0 +1,18 @@
+# Nivel 8 para todo el backend. app/Domain se analiza además al nivel máximo
+# con phpstan-domain.neon (ver docs/nomix/05 §4).
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - app
+        - bootstrap/app.php
+        - bootstrap/providers.php
+        - config
+        - routes
+        # Los archivos de prueba de Pest usan APIs dinámicas que PHPStan no resuelve;
+        # se analiza solo el código de soporte.
+        - tests/TestCase.php
+        - tests/Architecture/Support
+    tmpDir: storage/framework/cache/phpstan
