@@ -43,7 +43,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-010 (H1) implementado y probado en local; pendiente de publicación, revisión técnica e integración.**
+**NMX-010 (H1) implementado, probado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)), con el CI en verde; pendiente de revisión técnica e integración.**
 
 - Rama: `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8).
 - Implementó: Claude. Revisión técnica: Codex, si está disponible.
@@ -323,7 +323,7 @@ Primer ticket de H1. Lo implementó Claude; la revisión técnica es de Codex si
 
 **Publicación, revisión e integración**
 
-- [ ] Push y PR contra `docs-flujo-desarrollador-unico`; se reorienta a `main` cuando se integre el PR #8.
+- [x] Push y [PR #9](https://github.com/ba2sai/nomix/pull/9) contra `docs-flujo-desarrollador-unico`; se reorienta a `main` cuando se integre el PR #8. CI #9 en verde en 2 min 25 s sobre `928e641`, con el paso nuevo de cobertura.
 - [ ] Revisión técnica, CI en verde e integración por el responsable.
 
 ## 4. Siguientes pasos inmediatos
@@ -337,7 +337,7 @@ Primer ticket de H1. Lo implementó Claude; la revisión técnica es de Codex si
 - [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
 - [x] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes. Implementado y probado; falta publicación, revisión e integración (ver §3).
 
-- [x] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Implementado y probado; falta publicación, revisión e integración (ver §3).
+- [x] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Implementado, probado y publicado (PR #9, CI en verde); falta revisión e integración (ver §3).
 
 **Resultado esperado para cerrar H0:** entorno reproducible, backend/frontend con herramientas de calidad, CI en verde, objetos monetarios probados y parámetros legales versionados por fecha.
 
