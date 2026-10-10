@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Payroll\Input\EmployerSnapshot;
 use App\Domain\Payroll\PayrollException;
 use App\Domain\Payroll\Result\Concept;
+use App\Domain\Payroll\Result\LineItem;
 use App\Domain\Payroll\Result\PayrollWarning;
 use App\Domain\Payroll\Rules\CssEmployeeRule;
 use App\Domain\Payroll\Rules\CssEmployerRule;
@@ -56,7 +57,7 @@ describe('cuotas con tasa de parametros_legales (RULE-001, 002, 005 y 006)', fun
             ->and($trace['regla'])->toBe($ruleId)
             ->and($trace['formula'])->toBe("base_gravable × {$code}")
             ->and($trace['entradas'])->toHaveCount(2)
-            ->and($trace['entradas'][0])->toBe(['nombre' => 'base_gravable', 'valor' => '1000.00', 'sensible' => false, 'parametro' => null])
+            ->and($trace['entradas'][0])->toBe(['nombre' => 'base_gravable', 'valor' => null, 'sensible' => true, 'parametro' => null])
             ->and($trace['entradas'][1]['nombre'])->toBe($code)
             ->and($trace['entradas'][1]['valor'])->toBe($rate)
             ->and($trace['redondeo'])->toBe(['regla' => 'RULE-080', 'escala' => 2, 'modo' => 'HALF_UP']);
@@ -83,6 +84,30 @@ describe('cuotas con tasa de parametros_legales (RULE-001, 002, 005 y 006)', fun
 });
 
 describe('base gravable', function (): void {
+    it('protege la base en la línea y su traza cuando coincide con el salario base', function (callable $calculate, string $expected): void {
+        $base = Money::of('4321.67');
+        $line = $calculate($base, contributionParameters());
+
+        ob_start();
+        var_dump($line);
+        $dump = ob_get_clean();
+
+        expect($line->amount->toString())->toBe($expected)
+            ->and($line->trace->inputs()[0]->value)->toBe('4321.67')
+            ->and($line->toArray()['traza']['entradas'][0])->toBe(['nombre' => 'base_gravable', 'valor' => null, 'sensible' => true, 'parametro' => null])
+            ->and(json_encode($line->toArray(), JSON_THROW_ON_ERROR))->not->toContain('4321.67')
+            ->and(json_encode($line, JSON_THROW_ON_ERROR))->not->toContain('4321.67')
+            ->and(json_encode($line->trace, JSON_THROW_ON_ERROR))->not->toContain('4321.67')
+            ->and(print_r($line, true))->not->toContain('4321.67')
+            ->and($dump)->not->toContain('4321.67');
+    })->with([
+        'RULE-001' => [fn (Money $base, LegalParameters $parameters): LineItem => (new CssEmployeeRule)->calculate($base, $parameters), '43.22'],
+        'RULE-002' => [fn (Money $base, LegalParameters $parameters): LineItem => (new CssEmployerRule)->calculate($base, $parameters), '86.43'],
+        'RULE-005' => [fn (Money $base, LegalParameters $parameters): LineItem => (new EducationInsuranceEmployeeRule)->calculate($base, $parameters), '129.65'],
+        'RULE-006' => [fn (Money $base, LegalParameters $parameters): LineItem => (new EducationInsuranceEmployerRule)->calculate($base, $parameters), '172.87'],
+        'RULE-007' => [fn (Money $base, LegalParameters $parameters): LineItem => (new OccupationalRiskRule)->calculate($base, new EmployerSnapshot('0.021000'), $parameters), '90.76'],
+    ]);
+
     it('rechaza una base negativa o con más de 2 decimales, sin mostrar su monto', function (string $base): void {
         try {
             (new CssEmployeeRule)->calculate(Money::of($base), contributionParameters());
@@ -103,6 +128,23 @@ describe('base gravable', function (): void {
 });
 
 describe('Riesgos Profesionales (RULE-007)', function (): void {
+    it('mantiene aisladas las tasas de dos empresas en cálculos intercalados', function (): void {
+        $rule = new OccupationalRiskRule;
+        $base = Money::of('500.00');
+        $parameters = contributionParameters();
+        $companyA = new EmployerSnapshot('0.021000');
+        $companyB = new EmployerSnapshot('0.042000');
+        $firstA = $rule->calculate($base, $companyA, $parameters);
+        $lineB = $rule->calculate($base, $companyB, $parameters);
+        $secondA = $rule->calculate($base, $companyA, $parameters);
+
+        expect($firstA->amount->toString())->toBe('10.50')
+            ->and($lineB->amount->toString())->toBe('21.00')
+            ->and($secondA->toArray())->toBe($firstA->toArray())
+            ->and($firstA->trace->inputs()[1]->value)->toBe('0.021000')
+            ->and($lineB->trace->inputs()[1]->value)->toBe('0.042000');
+    });
+
     it('aplica la tasa de la empresa y deja el rango de referencia en la traza', function (): void {
         $line = (new OccupationalRiskRule)->calculate(Money::of('1000.00'), new EmployerSnapshot('0.021000'), contributionParameters());
         $trace = $line->trace->toArray();
@@ -112,7 +154,7 @@ describe('Riesgos Profesionales (RULE-007)', function (): void {
             ->and($trace['regla'])->toBe('RULE-007')
             ->and($trace['formula'])->toBe('base_gravable × tasa_riesgo_profesional')
             ->and(array_column($trace['entradas'], 'nombre'))->toBe(['base_gravable', 'tasa_riesgo_profesional', 'RIESGO_PROFESIONAL_TASA_MINIMA', 'RIESGO_PROFESIONAL_TASA_MAXIMA'])
-            ->and(array_column($trace['entradas'], 'valor'))->toBe(['1000.00', '0.021000', '0.0100', '0.0500']);
+            ->and(array_column($trace['entradas'], 'valor'))->toBe([null, '0.021000', '0.0100', '0.0500']);
     });
 
     it('hereda el estado del rango de referencia: no habilita producción mientras sea PARCIAL', function (): void {

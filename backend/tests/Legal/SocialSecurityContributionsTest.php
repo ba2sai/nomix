@@ -50,6 +50,12 @@ describe('RULE-002 — cuota patronal CSS sobre salario, según el mes de cuota'
         'cuota de octubre de 2026 (13.25%)' => ['2026-10-15', '66.25'],
         'cuota de marzo de 2027 (14.25%)' => ['2027-03-15', '71.25'],
         'cuota de marzo de 2025, recálculo histórico (12.25%)' => ['2025-03-15', '61.25'],
+        'último día del tramo histórico' => ['2025-03-31', '61.25'],
+        'primer día del tramo de 13.25%' => ['2025-04-01', '66.25'],
+        'último día del tramo de 13.25%' => ['2027-02-28', '66.25'],
+        'primer día del tramo de 14.25%' => ['2027-03-01', '71.25'],
+        'último día del tramo de 14.25%' => ['2029-02-28', '71.25'],
+        'primer día del tramo de 15.25%' => ['2029-03-01', '76.25'],
     ]);
 });
 

@@ -46,7 +46,8 @@ final class RateContribution
         return new LineItem($concept, RuleTrace::calculated(
             $ruleId,
             $formula,
-            [TraceInput::money('base_gravable', $taxableBase), ...$rateInputs],
+            // La base puede coincidir con el salario base; solo se conserva en memoria.
+            [TraceInput::money('base_gravable', $taxableBase, sensitive: true), ...$rateInputs],
             $taxableBase->multipliedBy($rate),
             RoundingRule::from($parameters),
         ));

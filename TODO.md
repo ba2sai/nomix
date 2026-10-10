@@ -46,15 +46,15 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-010 (H1) implementado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)). La revisión de Codex pidió tres cambios (R1 a R3), ya corregidos, con el CI en verde sobre `7354f75`; pendiente de integración, después del PR #8.**
+**NMX-010 (H1) implementado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)). La revisión de Codex pidió tres cambios (R1 a R3), ya corregidos, con el CI en verde sobre `c499819`; pendiente de integración, después del PR #8.**
 
 - Rama: `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8).
 - Implementó: Claude. Revisión técnica: Codex.
 
-**NMX-011 (H1) implementado y probado; pendiente de publicación, revisión técnica e integración.**
+**NMX-011 (H1) implementado, revisado y probado localmente; pendiente de publicación, CI e integración.**
 
 - Rama: `nmx-011-cuotas-css-se-rp`, encadenada sobre `nmx-010-contratos-motor` (PR #9).
-- Implementó: Claude. Revisión técnica: Codex, si está disponible.
+- Implementó: Claude. Revisión técnica y corrección de privacidad: Codex.
 
 ## 2. Trabajo realizado
 
@@ -378,14 +378,27 @@ Segundo ticket de H1: RULE-001, 002, 005, 006 y 007. Lo implementó Claude; la r
 
 **Decisiones a validar**
 
-- [ ] **La base gravable entra ya armada.** Qué conceptos la forman sigue pendiente en RULE-001 (pregunta 2 del cuestionario al contador). Lo resolverá el calculador (NMX-016) sin inventar la composición.
-- [ ] **El "mes de cuota" de RULE-002** lo fija quien carga los `LegalParameters` (NMX-016). Las reglas usan la tasa vigente en esa fecha.
-- [ ] **Rango de referencia de RULE-007 como aviso, no como error.** El catálogo lo da como aproximado; rechazar una tasa fuera de él sería inventar una restricción.
+- [x] **La base gravable entra ya armada.** Decisión revisada por Codex: evita inventar conceptos. La composición sigue pendiente en RULE-001 (pregunta 2 del cuestionario al contador); NMX-016 debe conservarla como configuración pendiente hasta validación profesional.
+- [x] **El "mes de cuota" de RULE-002** lo fija quien carga los `LegalParameters` (NMX-016). Decisión revisada por Codex: las reglas usan la tasa vigente en esa fecha; cómo elegir ese mes sigue pendiente de confirmar.
+- [x] **Rango de referencia de RULE-007 como aviso, no como error.** Decisión revisada por Codex: el catálogo lo da como aproximado; rechazar una tasa fuera de él sería inventar una restricción. La carga por empresa y el historial de vigencia quedan para la integración posterior.
+
+**Revisión independiente de Codex y correcciones (10 de octubre de 2026)**
+
+- [x] Revisión ciega de las pruebas legales de `e21e921` contra el catálogo, antes de inspeccionar la implementación: los ocho resultados coinciden con el recálculo decimal independiente.
+- [x] Revisión técnica del diff `c499819..e4cfe8a`: un hallazgo bloqueante de privacidad. `RateContribution` exponía `base_gravable` en la traza, aunque puede coincidir con el salario base.
+- [x] Corrección: la entrada se marca sensible y sale con `valor: null` en arrays, JSON y depuración; conserva su valor únicamente en memoria para calcular.
+- [x] Regresión para las cinco reglas: 5 fallos antes de corregir; después pasan las pruebas de ocultamiento sin cambiar los importes. Suite enfocada: 43 pruebas, 166 aserciones y 1 `todo`.
+- [x] Mejora de cobertura legal: las seis fronteras de RULE-002, incluido 500.00 → 76.25 desde el 1 de marzo de 2029, derivadas de las vigencias del catálogo.
+- [x] Aislamiento en dominio: cálculos intercalados A/B/A con tasas RP distintas mantienen cada tasa y resultado. No hay persistencia, rutas ni migraciones nuevas; RLS y carga por empresa se verifican en la futura integración.
+- [x] Segundo agente de Codex revisó la corrección y retiró el bloqueo; sin hallazgos bloqueantes pendientes. La cobertura independiente de `PARCIAL` para RP con redondeo `VALIDADO` ya estaba en las pruebas unitarias.
+- [x] Verificación completa posterior a la corrección: `nomix.ps1 lint` y `nomix.ps1 test` con código 0. Pest: 425 pruebas, 1.019 aserciones y 1 `todo`; mutación: 474/474 detectados (100%); cobertura de `app/Domain`: 100%; comprobaciones de RLS, Horizon, frontend e integración en verde.
+- [ ] CI del commit final de la corrección.
 
 **Publicación, revisión e integración**
 
 - [ ] Push y PR contra `nmx-010-contratos-motor`; se reorienta a `main` cuando se integre el PR #9.
-- [ ] Revisión técnica, CI en verde e integración por el responsable.
+- [x] Revisión técnica independiente y resolución de hallazgos bloqueantes.
+- [ ] CI en verde e integración por el responsable.
 
 ## 4. Siguientes pasos inmediatos
 
@@ -395,7 +408,7 @@ Segundo ticket de H1: RULE-001, 002, 005, 006 y 007. Lo implementó Claude; la r
 - [ ] **Limpieza de la etapa 0:** borrar del remoto las ramas integradas y retirar los worktrees de revisión de `tmp/` (detalle en §1).
 - [ ] **Validación legal:** enviar el cuestionario al contador y registrar sus respuestas en el catálogo (ver §5).
 - [ ] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Hallazgos R1 a R3 de Codex corregidos y CI en verde; falta integrar el PR #9, después del #8 (ver §3).
-- [ ] **NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales:** implementado y probado; faltan publicación, revisión e integración (ver §3).
+- [ ] **NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales:** implementado, revisado y probado; faltan publicación, CI e integración (ver §3).
 - [ ] **H1, etapa 2 (resto):** NMX-012 (tarifa de ISR) y NMX-014 (horas extra), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 Cada PR se integra según [AGENTS.md](AGENTS.md): revisión técnica independiente cuando esté disponible, revisión del diff por el responsable y check **CI / Lint y pruebas** en verde en el commit exacto, sin aprobación formal de otra cuenta.

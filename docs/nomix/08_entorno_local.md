@@ -142,6 +142,7 @@ Una clase por regla en `App\Domain\Payroll\Rules`. Cada una devuelve un `LineIte
 | RULE-007 | `OccupationalRiskRule` | `riesgo_profesional` | La de la empresa (`EmployerSnapshot`) |
 
 - **La base gravable entra ya armada.** Qué conceptos la forman sigue pendiente en RULE-001; lo decide el calculador (NMX-016). Debe ser cero o positiva y tener 2 decimales como máximo; el error no muestra el monto.
+- **Base sensible:** puede coincidir con el salario base. La entrada `base_gravable` se conserva en memoria para calcular, pero sale con `valor: null` y `sensible: true` en la traza, JSON y depuración (AGENTS.md, regla 7).
 - **El "mes de cuota" de RULE-002** lo fija quien carga los `LegalParameters`: la regla usa la tasa vigente en esa fecha.
 - **RULE-007 (`PARCIAL`):** la traza incluye el rango de referencia del catálogo (`RIESGO_PROFESIONAL_TASA_MINIMA` y `_MAXIMA`), así que la línea hereda su estado y no habilita producción. `warnings()` avisa, sin bloquear, si la tasa de la empresa queda fuera de ese rango.
 - **RULE-005 no se aplica al XIII mes:** el cálculo del XIII (NMX-050) no usa esta regla. El caso del catálogo queda como `todo` en `tests/Legal/SocialSecurityContributionsTest.php`.
