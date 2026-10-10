@@ -163,3 +163,22 @@ describe('validación y serialización', function (): void {
             ->and(fn () => json_encode(Money::of('0.001'), JSON_THROW_ON_ERROR))->toThrow(MoneyException::class);
     });
 });
+
+describe('escala y valor exacto para trazas', function (): void {
+    it('indica si el monto cabe en una escala sin redondear', function (string $amount, int $scale, bool $fits): void {
+        expect(Money::of($amount)->fitsScale($scale))->toBe($fits);
+    })->with([
+        'entero en 0' => ['12', 0, true],
+        'ceros a la derecha' => ['1.500', 2, true],
+        'justo en 2' => ['1.25', 2, true],
+        'pasa de 2' => ['1.255', 2, false],
+        'pasa de 0' => ['0.5', 0, false],
+        'negativo en 2' => ['-3.10', 2, true],
+    ]);
+
+    it('entrega el valor exacto, con todos sus decimales', function (): void {
+        expect(Money::of('1234.56')->multipliedBy('0.0975')->toDecimalString())->toBe('120.369600')
+            ->and(Money::of('5')->toDecimalString())->toBe('5')
+            ->and(Money::of('-0.10')->toDecimalString())->toBe('-0.10');
+    });
+});

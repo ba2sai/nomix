@@ -25,6 +25,7 @@ lint:
 test:
 	$(COMPOSE) run --rm --no-deps app composer test
 	$(COMPOSE) run --rm --no-deps app composer mutate
+	$(COMPOSE) run --rm --no-deps app composer coverage
 	$(COMPOSE) run --rm --no-deps checks
 	$(COMPOSE) exec -T horizon php artisan horizon:status
 	$(COMPOSE) run --rm --no-deps frontend npm test

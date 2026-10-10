@@ -46,6 +46,11 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
 - Implementó: Claude. Revisa: Codex.
 
+**NMX-010 (H1) implementado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)). La revisión de Codex pidió tres cambios (R1 a R3), ya corregidos; pendiente del CI del nuevo commit y de la integración.**
+
+- Rama: `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8).
+- Implementó: Claude. Revisión técnica: Codex.
+
 ## 2. Trabajo realizado
 
 - [x] Analizar la documentación y ordenar el plan de desarrollo.
@@ -270,7 +275,7 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [x] RULE-007 se siembra solo como rango de referencia (`RIESGO_PROFESIONAL_TASA_MINIMA/MAXIMA`, `PARCIAL`); la tasa real es por empresa (H2). RULE-060 no se siembra: es la tabla `salarios_minimos`, pendiente de la tabla oficial. RULE-053, 054, 070 y 090 no tienen valores numéricos.
 - [x] `jsonb` no conserva el orden de las claves: las tablas (`tramos`) se leen por clave, nunca por posición. Los números dentro de las tablas van como string.
 - [x] El calendario de partidas del XIII mes sigue en código (`ThirteenthMonthInstallment`), como quedó abierto en NMX-005; solo se siembra `XIII_DIVISOR`.
-- [x] `RoundingPolicy` (NMX-005) todavía no se construye desde `REDONDEO_POLITICA`. **Trabajo posterior:** lo hará el primer ticket del motor que la necesite.
+- [x] `RoundingPolicy` (NMX-005) todavía no se construye desde `REDONDEO_POLITICA`. **Trabajo posterior:** lo hará el primer ticket del motor que la necesite. Resuelto en NMX-010 (`RoundingRule::from`).
 - [x] El rol de aplicación conserva DML sobre `parametros_legales` por los privilegios por defecto. **Trabajo posterior:** revocar `INSERT/UPDATE/DELETE` a ese rol, de modo que solo el migrador cambie tasas, queda propuesto para NMX-024 o NMX-091.
 
 **Publicación, revisión e integración**
@@ -279,6 +284,65 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [x] Revisión de Codex sobre `b61b06d` (`tmp/revision-pr-7.md`): aprobado, sin hallazgos bloqueantes.
 - [x] Integrado en `main` (merge `56527c4`), con el CI en verde en `b61b06d`.
 
+### NMX-010 — Contratos del motor de nómina (9 de octubre de 2026)
+
+Primer ticket de H1. Lo implementó Claude; la revisión técnica es de Codex si está disponible (AGENTS.md §5).
+
+**Implementación**
+
+- [x] Rama `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8) para no chocar en `TODO.md`.
+- [x] `App\Domain\Shared\Rules`:
+  - `RuleTrace`: `calculated()` siempre cita su `RULE-xxx` y redondea con RULE-080; `entered()` es para montos sin regla, como una novedad.
+  - `TraceInput`: entrada de tipo monto, cantidad o parámetro legal. Las entradas sensibles salen sin valor en `toArray()`.
+  - `RoundingRule`: construye la política desde `REDONDEO_POLITICA` y conserva el parámetro, así que toda traza que redondea queda marcada como pendiente mientras RULE-080 lo esté.
+- [x] `App\Domain\Payroll\Input`: `PayrollInput`, `EmployeeSnapshot`, `EmployerSnapshot`, `Novelty` y `NoveltyType`, `WorkShift`. La periodicidad del colaborador debe coincidir con la del período; período y fecha de pago van por separado ("mes de cuota" de RULE-002, pendiente).
+- [x] `App\Domain\Payroll\Result`:
+  - `LineItem`: su monto es el resultado de la traza; nunca es negativo y cabe en 2 decimales.
+  - `Concept` → `Category`.
+  - `PayrollResult`: totales de `planilla_colaboradores` sumados desde líneas redondeadas, avisos, `pendingParameterCodes()`, `allowsProduction()` y `toArray()`.
+- [x] `Money::fitsScale()` y `Money::toDecimalString()`, para validar escalas y mostrar valores exactos en las trazas.
+- [x] Pendiente heredado de H0 resuelto: `RoundingPolicy` ya se construye desde `parametros_legales` (`RoundingRule::from`).
+- [x] Pruebas sin base de datos:
+  - `Database\Seeders\CatalogoLegal` concentra las filas del catálogo; `ParametrosLegalesSeeder` las carga.
+  - `tests/Support/LegalCatalog::forDate()` arma `LegalParameters` en memoria con esas mismas filas.
+  - `tests/Support/Parameters` crea parámetros a medida.
+- [x] `composer coverage` (`phpunit.domain.xml`): suite `Unit` solo sobre `app/Domain`, mínimo 100%. Incluido en `make test`, `nomix.ps1` y, por tanto, en el CI. Resuelve el pendiente derivado de la verificación de Codex.
+- [x] Documentación: `05` §2.1, `06` (`concepto` y `traza`) y `08` (sección "Motor de nómina: contratos").
+
+**Pruebas**
+
+- [x] Pest: 350 pruebas, 777 aserciones. Las de BD de NMX-006 siguen en verde tras separar el catálogo del seeder.
+- [x] Cobertura de `app/Domain`: 100%.
+- [x] Mutación: 415 de 415 mutantes detectados. Se ajustaron 3 pruebas cuyos montos también cabían en 1 decimal. `PayrollResult::pendingParameterCodes()` se reescribió con `array_unique` para eliminar un mutante equivalente.
+- [x] PHPStan nivel 8 y `max` en `Domain`, Pint: sin errores.
+
+**Decisiones a validar**
+
+- [ ] `RuleTrace` admite `ruleId` nulo solo vía `entered()`, para montos que no salen de una regla. Un cálculo legal siempre cita su regla.
+- [ ] El salario del período (quincena, prorrateos) aún no tiene regla en el catálogo: preguntas 4.6 a 4.8 del cuestionario al contador. Se resolverá en NMX-016 sin inventar la regla.
+- [ ] Los totales no corrigen un neto negativo; lo resolverá la prioridad de descuentos (RULE-070, NMX-015).
+- [ ] La traza serializada guarda montos de líneas en claro (decisión 1 de `06` §6), pero nunca el salario base como entrada.
+
+**Publicación, revisión e integración**
+
+- [x] Push y [PR #9](https://github.com/ba2sai/nomix/pull/9) contra `docs-flujo-desarrollador-unico`; se reorienta a `main` cuando se integre el PR #8. CI #9 en verde en 2 min 25 s sobre `928e641`, con el paso nuevo de cobertura.
+- [x] Revisión técnica de Codex sobre `e230684` (`tmp/revision-pr-9.md`): requiere cambios, con 3 hallazgos (R1 a R3). La suite existente pasaba; las pruebas independientes del revisor fallaban en 3 de 11 casos.
+- [x] Hallazgos corregidos (ver "Ronda de revisión 1").
+- [ ] Push de las correcciones, CI en verde en el commit nuevo e integración por el responsable, después del PR #8.
+
+**Ronda de revisión 1 (Codex)**
+
+| Hallazgo | Resolución |
+|---|---|
+| R1 · P1: el error de validación de `EmployeeSnapshot` incluía el salario base (p. ej. `4321.675`), que podía acabar en un log | Nuevo `PayrollException::salaryNotRounded()`, sin el monto. La prueba que exigía el importe en el mensaje ahora comprueba que no aparece ni en el mensaje ni en la pila de llamadas. |
+| R2 · P2: `json_encode(TraceInput)` sacaba el valor de una entrada sensible, porque `value` es público y solo `toArray()` lo ocultaba | `TraceInput` y `RuleTrace` implementan `JsonSerializable` y `__debugInfo()` con la forma de `toArray()`. Revisando los snapshots apareció el mismo problema en `EmployeeSnapshot`: `Money` es `JsonSerializable`, así que el salario salía en claro. Ahora también se serializa sin él. Pruebas con `json_encode`, `print_r` y `var_dump` de `TraceInput`, `RuleTrace`, `EmployeeSnapshot` y `PayrollInput`. |
+| R3 · P2: al deduplicar por código, una versión `VALIDADO` ocultaba otra `PENDIENTE` del mismo parámetro, y la traza permitía producción | `RuleTrace` rechaza dos versiones distintas del mismo código (`RuleTraceException::conflictingParameter`), en cualquier orden y también contra el parámetro de redondeo. El mismo parámetro repetido se sigue aceptando: `LegalParameter::equals()` compara código, regla, valor o tabla, vigencia, estado y fuente. |
+
+Además:
+
+- Las 11 pruebas independientes de Codex quedan como regresión en `tests/Legal/PayrollContractsTest.php`. La de R3 se adaptó a la corrección elegida: espera el rechazo en vez de un resultado.
+- `composer mutate` desactiva el límite de 300 s de Composer. En el entorno de Codex la mutación superó ese límite y cortó el primer `make test`, aunque en el CI pasaba.
+
 ## 4. Siguientes pasos inmediatos
 
 **Pendientes actuales**
@@ -286,7 +350,8 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [ ] **Proteger `main`:** exigir el check **CI / Lint y pruebas** antes de fusionar (configuración del dueño del repositorio).
 - [ ] **Limpieza de la etapa 0:** borrar del remoto las ramas integradas y retirar los worktrees de revisión de `tmp/` (detalle en §1).
 - [ ] **Validación legal:** enviar el cuestionario al contador y registrar sus respuestas en el catálogo (ver §5).
-- [ ] **H1:** empezar por NMX-010 (contratos del motor), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
+- [ ] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Hallazgos R1 a R3 de Codex corregidos; falta el CI del nuevo commit y la integración del PR #9, después del #8 (ver §3).
+- [ ] **H1, etapa 2:** NMX-011 (CSS, SE y Riesgos Profesionales), NMX-012 (tarifa de ISR) y NMX-014 (horas extra), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 Cada PR se integra según [AGENTS.md](AGENTS.md): revisión técnica independiente cuando esté disponible, revisión del diff por el responsable y check **CI / Lint y pruebas** en verde en el commit exacto, sin aprobación formal de otra cuenta.
 

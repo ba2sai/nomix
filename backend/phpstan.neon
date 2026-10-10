@@ -16,4 +16,5 @@ parameters:
         # se analiza solo el código de soporte.
         - tests/TestCase.php
         - tests/Architecture/Support
+        - tests/Support
     tmpDir: storage/framework/cache/phpstan
