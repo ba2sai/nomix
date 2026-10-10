@@ -1,15 +1,19 @@
 # TO DO — Nomix
 
-**Actualizado:** 8 de octubre de 2026.  
+**Actualizado:** 9 de octubre de 2026.
 **Objetivo del MVP:** procesar una planilla quincenal completa, con cálculos correctos, trazables y aislamiento entre empresas.
 
 Este documento resume el avance y ordena los siguientes pasos. Los criterios completos y las dependencias de cada ticket están en el [backlog del MVP](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 ## 1. Estado actual
 
-**NMX-001 implementado, probado y publicado ([PR #2](https://github.com/ba2sai/nomix/pull/2)); pendiente de revisión cruzada e integración.** H0 todavía no está cerrado.
+**H0 cerrado: NMX-001 a NMX-006 están integrados en `main` desde el 9 de octubre de 2026.** El merge `a57cd5e` integró la cadena de NMX-001 a NMX-004, con el CI en verde en `f97f40f`; el merge `56527c4` integró NMX-006, con el CI en verde en `b61b06d`.
 
-**Cadena de PRs abiertos, sin fusionar (8 de octubre de 2026):** `main` ← #2 (NMX-001) ← #1 (NMX-002) ← #3 (NMX-003) ← #4 (NMX-005) ← #5 (NMX-004) ← #7 (NMX-006). El orden de fusión es ese, de izquierda a derecha, y cada fusión la aprueba el dueño del producto: el implementador no fusiona su propio PR. Al fusionar cada uno hay que reorientar el siguiente a `main` si GitHub no lo hace solo. El PR de demostración #6 está cerrado.
+**NMX-001 implementado, probado e integrado en `main` ([PR #2](https://github.com/ba2sai/nomix/pull/2)).**
+
+**Integración (9 de octubre de 2026):** la cadena `main` ← #2 (NMX-001) ← #1 (NMX-002) ← #3 (NMX-003) ← #4 (NMX-005) ← #5 (NMX-004) ← #7 (NMX-006) entró en `main` con los merges `a57cd5e` y `56527c4`. Como hay un único desarrollador humano, no se exige aprobación formal de otra cuenta: el responsable puede revisar y fusionar sus PRs si el CI está verde en el commit exacto y no quedan hallazgos bloqueantes. El PR de demostración #6 está cerrado sin fusionar.
+
+**Limpieza pendiente de la etapa 0:** borrar del remoto las ramas ya integradas (`nmx-001` a `nmx-006` y `ccr-2e3f57bc-j6bsvi`), retirar los worktrees de revisión de `tmp/` y confirmar que `main` exige el check **CI / Lint y pruebas**. `desarrollo_CC` no se toca: tiene commits que no están en `main`.
 
 - Rama: [`nmx-001-monorepo-docker`](https://github.com/ba2sai/nomix/tree/nmx-001-monorepo-docker).
 - Rama de origen: `ccr-2e3f57bc-j6bsvi`.
@@ -17,29 +21,29 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Mensaje: `feat(nmx-001): incorpora monorepo y entorno Docker local`.
 - Ya existe un arranque técnico; los módulos de negocio, autenticación y cálculos de nómina siguen pendientes.
 
-**NMX-002 implementado, probado y publicado ([PR #1](https://github.com/ba2sai/nomix/pull/1)); pendiente de revisión cruzada (Codex) e integración.**
+**NMX-002 implementado, probado e integrado en `main` ([PR #1](https://github.com/ba2sai/nomix/pull/1)).**
 
-- Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` porque NMX-001 aún no está integrado. Al fusionar NMX-001, el PR de NMX-002 se reorienta a `main`.
+- Rama: `nmx-002-backend-base`, creada desde `nmx-001-monorepo-docker` cuando NMX-001 aún no estaba integrado; entró en `main` con la cadena H0.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-003 implementado, probado y aprobado por Codex (tercera revisión, sobre `e215155`) y publicado ([PR #3](https://github.com/ba2sai/nomix/pull/3)); pendiente de aprobación del dueño del producto e integración.**
+**NMX-003 implementado, probado y revisado técnicamente por Codex (tercera revisión, sobre `e215155`), e integrado en `main` ([PR #3](https://github.com/ba2sai/nomix/pull/3)).**
 
 - Rama: `nmx-003-frontend-base`, encadenada sobre `nmx-002-backend-base`.
 - Implementó: Claude, por indicación del dueño del producto. Revisa: Codex.
 
-**NMX-005 implementado, probado, aprobado por Codex y publicado ([PR #4](https://github.com/ba2sai/nomix/pull/4)); pendiente de aprobación del dueño del producto e integración.**
+**NMX-005 implementado, probado, revisado técnicamente por Codex e integrado en `main` ([PR #4](https://github.com/ba2sai/nomix/pull/4)).**
 
-**NMX-004 implementado, verificado en GitHub Actions y publicado ([PR #5](https://github.com/ba2sai/nomix/pull/5)); verificado por Codex en la revisión integral del 8 de octubre; pendiente de revisión cruzada formal del PR, aprobación del dueño del producto e integración.**
+- Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
+- Implementó: Claude. Revisa: Codex.
+
+**NMX-004 implementado, verificado en GitHub Actions e integrado en `main` ([PR #5](https://github.com/ba2sai/nomix/pull/5)); revisado técnicamente por Codex el 8 de octubre.**
 
 - Rama: `nmx-004-ci`, encadenada sobre `nmx-005-money-value-object` para que el CI cubra también la mutación de NMX-005.
 - Implementó: Claude, por indicación del dueño del producto (en el backlog figuraba Codex). Revisa: Codex.
 
-**NMX-006 implementado, probado y publicado ([PR #7](https://github.com/ba2sai/nomix/pull/7)), con el CI en verde; pendiente de revisión cruzada (Codex) e integración.**
+**NMX-006 implementado, probado, revisado técnicamente por Codex e integrado en `main` ([PR #7](https://github.com/ba2sai/nomix/pull/7)), con el CI en verde.**
 
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
-- Implementó: Claude. Revisa: Codex.
-
-- Rama: `nmx-005-money-value-object`, encadenada sobre `nmx-003-frontend-base`.
 - Implementó: Claude. Revisa: Codex.
 
 ## 2. Trabajo realizado
@@ -99,9 +103,8 @@ Las operaciones de lint y pruebas se ejecutaron con PowerShell. El Makefile se c
 **Publicación, revisión e integración**
 
 - [x] Commit `7bbb32a` y push de `nmx-002-backend-base` al remoto `nomix`.
-- [x] PR [#1](https://github.com/ba2sai/nomix/pull/1) con la plantilla, contra `nmx-001-monorepo-docker`. Al integrarse NMX-001 se reorienta a `main`.
-- [ ] Revisión cruzada de Codex.
-- [ ] Aprobación del dueño del producto e integración.
+- [x] PR [#1](https://github.com/ba2sai/nomix/pull/1) con la plantilla, contra `nmx-001-monorepo-docker`.
+- [x] Revisión técnica de Codex, CI en verde e integración en `main` con la cadena H0 (merge `a57cd5e`, 9 de octubre de 2026).
 
 **Notas para tickets siguientes**
 
@@ -140,8 +143,8 @@ Por indicación del dueño del producto, lo implementó Claude (en el backlog fi
 - [x] Segunda revisión de Codex sobre `925bb9f` (`tmp/nmx-003-review-925bb9f.md`): los 3 hallazgos anteriores quedaron resueltos y hay 1 nuevo P2.
 - [x] Corrección aplicada (ver "Ronda de revisión 2").
 - [x] Tercera revisión de Codex sobre `e215155`: aprobado.
-- [x] Push y [PR #3](https://github.com/ba2sai/nomix/pull/3) contra `nmx-002-backend-base`. Se reorienta a `main` al integrar la cadena.
-- [ ] Aprobación del dueño del producto e integración.
+- [x] Push y [PR #3](https://github.com/ba2sai/nomix/pull/3) contra `nmx-002-backend-base`.
+- [x] Integrado en `main` con la cadena H0 (merge `a57cd5e`), con el CI en verde.
 
 **Ronda de revisión 1 (Codex)**
 
@@ -184,17 +187,17 @@ Lección: en Windows, Vite dentro de Docker no detecta los cambios sin `VITE_USE
 - [x] También se cubren los casos del catálogo RULE-001 (500.00 → 48.75) y RULE-030 (6,000.00 ÷ 12 → 500.00).
 - [x] PHPStan nivel `max` en `Domain` sin errores.
 
-**Decisiones a validar en la revisión**
+**Decisiones aceptadas en la revisión** (Codex aprobó el PR sin objetarlas)
 
-- [ ] **Pest Mutate en lugar de Infection.** El backlog nombraba Infection, pero su versión 0.35 eliminó el adaptador de Pest. El criterio de fondo ("sin mutantes vivos") se cumple.
-- [ ] **Fechas de las partidas de RULE-030 en código** (`ThirteenthMonthInstallment::endMonth`). Son el calendario legal de la partida, no una tasa, y citan RULE-030. Si se prefiere, pueden pasar a `parametros_legales` en NMX-006.
-- [ ] **`RoundingPolicy` sin valores por defecto.** Hasta NMX-006 no hay una política "oficial" utilizable fuera de las pruebas.
+- [x] **Pest Mutate en lugar de Infection.** El backlog nombraba Infection, pero su versión 0.35 eliminó el adaptador de Pest. El criterio de fondo ("sin mutantes vivos") se cumple.
+- [x] **Fechas de las partidas de RULE-030 en código** (`ThirteenthMonthInstallment::endMonth`). Son el calendario legal de la partida, no una tasa, y citan RULE-030. NMX-006 las mantuvo en código.
+- [x] **`RoundingPolicy` sin valores por defecto.** Su construcción desde `parametros_legales` quedó para el primer ticket del motor que la necesite (ver NMX-006).
 
 **Publicación, revisión e integración**
 
-- [x] Push y [PR #4](https://github.com/ba2sai/nomix/pull/4) contra `nmx-003-frontend-base`. Se reorienta a `main` al integrar la cadena.
+- [x] Push y [PR #4](https://github.com/ba2sai/nomix/pull/4) contra `nmx-003-frontend-base`.
 - [x] Revisión cruzada de Codex: aprobado (comunicado por el dueño del producto el 7 de octubre de 2026).
-- [ ] Aprobación del dueño del producto e integración.
+- [x] Integrado en `main` con la cadena H0 (merge `a57cd5e`), con el CI en verde.
 
 ### Verificación integral de Codex (8 de octubre de 2026)
 
@@ -233,12 +236,13 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [x] Push y [PR #5](https://github.com/ba2sai/nomix/pull/5) contra `nmx-005-money-value-object`. [CI #1](https://github.com/ba2sai/nomix/actions/runs/37775752854) en **verde** en 5 min 51 s: imagen PHP, `setup`, lint, Pest (131), mutación al 100%, RLS, Horizon, Vitest, integración y build.
 - [x] Demostración del criterio de aceptación: [PR #6](https://github.com/ba2sai/nomix/pull/6) (borrador, con una variable sin uso añadida a propósito). [CI #2](https://github.com/ba2sai/nomix/actions/runs/37775991435) en **rojo**: falló en el paso de lint (`'demoUnused' is assigned a value but never used`, ESLint), las pruebas no se ejecutaron y el entorno se apagó igualmente.
 - [x] PR #6 cerrado sin fusionar y rama `nmx-004-ci-demo-rojo` borrada del remoto y del equipo local.
-- [ ] Proteger `main` exigiendo el check **CI / Lint y pruebas** (configuración del dueño del repositorio). Codex no pudo comprobar si ya está protegida: la API respondió 403.
-- [ ] Revisión cruzada formal de Codex sobre el PR #5, aprobación del dueño del producto e integración.
+- [x] Revisión de Codex sobre `f97f40f` (`tmp/revision-pr-5.md`): aprobado, sin hallazgos bloqueantes.
+- [x] Integrado en `main` con la cadena H0 (merge `a57cd5e`), con el CI en verde en `f97f40f`.
+- [ ] Proteger `main` exigiendo el check **CI / Lint y pruebas** (configuración del dueño del repositorio). Codex no pudo comprobar si ya está protegida: la API respondió 403. Sigue pendiente (ver §4).
 
 **Mejora opcional:** `docker/build-push-action` sube en cada ejecución un artefacto con el registro de construcción de Docker (sin secretos). Se desactiva con `DOCKER_BUILD_RECORD_UPLOAD: false`.
 
-**Los PRs #1 a #5 no ejecutan el CI hasta que el workflow llegue a sus ramas:** el check solo existe en `nmx-004-ci`. Empezará a correr en todos al integrarse la cadena o al reorganizarlos sobre esta rama.
+**Histórico:** los PRs #1 a #5 no ejecutaban el CI mientras el workflow solo existía en `nmx-004-ci`. Desde la integración de la cadena H0, el check corre en todos los PRs.
 
 ### NMX-006 — Parámetros legales con vigencia (8 de octubre de 2026)
 
@@ -259,37 +263,47 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [x] Pruebas de dominio con mutación al 100%. Los mutantes que agotan el tiempo en la corrida completa cambian de una corrida a otra y, ejecutados uno a uno, quedan detectados sin agotar el tiempo: es carga de la máquina.
 - [x] `$this->seed()` de Laravel exige Mockery, que no está instalado; las pruebas ejecutan el seeder directamente desde el contenedor.
 
-**Decisiones a validar en la revisión**
+**Decisiones aceptadas en la revisión** (Codex aprobó el PR sin hallazgos bloqueantes; las que dejan trabajo posterior lo indican)
 
-- [ ] `vigente_desde` nullable (`06` lo tenía obligatorio): el catálogo no documenta el inicio de varias tasas (p. ej. la patronal histórica de 12.25%) y poner una fecha sería inventarla.
-- [ ] `ISR_GASTOS_REPRESENTACION_TARIFA` vigente desde `2010-07-01`: el catálogo dice "julio de 2010"; se tomó el día 1 y queda anotado en `fuente`.
-- [ ] RULE-007 se siembra solo como rango de referencia (`RIESGO_PROFESIONAL_TASA_MINIMA/MAXIMA`, `PARCIAL`); la tasa real es por empresa (H2). RULE-060 no se siembra: es la tabla `salarios_minimos`, pendiente de la tabla oficial. RULE-053, 054, 070 y 090 no tienen valores numéricos.
-- [ ] `jsonb` no conserva el orden de las claves: las tablas (`tramos`) se leen por clave, nunca por posición. Los números dentro de las tablas van como string.
-- [ ] El calendario de partidas del XIII mes sigue en código (`ThirteenthMonthInstallment`), como quedó abierto en NMX-005; solo se siembra `XIII_DIVISOR`.
-- [ ] `RoundingPolicy` (NMX-005) todavía no se construye desde `REDONDEO_POLITICA`; lo hará el primer ticket del motor que la necesite (NMX-011 o NMX-017).
-- [ ] El rol de aplicación conserva DML sobre `parametros_legales` por los privilegios por defecto. Revocar `INSERT/UPDATE/DELETE` a ese rol, de modo que solo el migrador cambie tasas, queda propuesto para NMX-024 o NMX-091.
+- [x] `vigente_desde` nullable (`06` lo tenía obligatorio): el catálogo no documenta el inicio de varias tasas (p. ej. la patronal histórica de 12.25%) y poner una fecha sería inventarla.
+- [x] `ISR_GASTOS_REPRESENTACION_TARIFA` vigente desde `2010-07-01`: el catálogo dice "julio de 2010"; se tomó el día 1 y queda anotado en `fuente`. La fecha exacta entra en la validación legal (§5).
+- [x] RULE-007 se siembra solo como rango de referencia (`RIESGO_PROFESIONAL_TASA_MINIMA/MAXIMA`, `PARCIAL`); la tasa real es por empresa (H2). RULE-060 no se siembra: es la tabla `salarios_minimos`, pendiente de la tabla oficial. RULE-053, 054, 070 y 090 no tienen valores numéricos.
+- [x] `jsonb` no conserva el orden de las claves: las tablas (`tramos`) se leen por clave, nunca por posición. Los números dentro de las tablas van como string.
+- [x] El calendario de partidas del XIII mes sigue en código (`ThirteenthMonthInstallment`), como quedó abierto en NMX-005; solo se siembra `XIII_DIVISOR`.
+- [x] `RoundingPolicy` (NMX-005) todavía no se construye desde `REDONDEO_POLITICA`. **Trabajo posterior:** lo hará el primer ticket del motor que la necesite.
+- [x] El rol de aplicación conserva DML sobre `parametros_legales` por los privilegios por defecto. **Trabajo posterior:** revocar `INSERT/UPDATE/DELETE` a ese rol, de modo que solo el migrador cambie tasas, queda propuesto para NMX-024 o NMX-091.
 
 **Publicación, revisión e integración**
 
 - [x] Commits `c3ef9d9` (refactor de NMX-005) y `3da0cb3`, push y [PR #7](https://github.com/ba2sai/nomix/pull/7) contra `nmx-004-ci`. Es el primer PR que ejecuta el CI con migración y seeder: [CI #4](https://github.com/ba2sai/nomix/actions) en verde en 5 min 9 s.
-- [ ] Revisión cruzada de Codex, aprobación del dueño del producto e integración.
+- [x] Revisión de Codex sobre `b61b06d` (`tmp/revision-pr-7.md`): aprobado, sin hallazgos bloqueantes.
+- [x] Integrado en `main` (merge `56527c4`), con el CI en verde en `b61b06d`.
 
 ## 4. Siguientes pasos inmediatos
 
-- [x] PR de NMX-001 abierto: [PR #2](https://github.com/ba2sai/nomix/pull/2).
-- [ ] Obtener la revisión de Claude y atender los hallazgos.
-- [ ] Obtener la aprobación del dueño del producto e integrar según el flujo de [AGENTS.md](AGENTS.md). El implementador no fusiona su propio PR.
-- [x] **NMX-002 — Backend:** incorporar Pint, PHPStan/Larastan y Pest; completar las capas y verificar que `Domain` no depende de Laravel ni usa `float`. Implementado y probado; falta publicación, revisión e integración (ver §3).
-- [x] **NMX-003 — Frontend:** incorporar Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; construir sidebar, header y modos claro/oscuro. Implementado y probado; falta revisión e integración (ver §3).
-- [x] **NMX-004 — CI:** después de NMX-002 y NMX-003, ejecutar lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. Implementado y verificado en GitHub: check en verde y demostración en rojo; falta revisión formal, protección de `main` e integración (ver §3).
-- [x] **NMX-005 — Money y PayPeriod:** después de NMX-002, implementar aritmética exacta y períodos, con redondeo configurable y pruebas de límites/mutación. Implementado y probado; falta revisión e integración (ver §3).
-- [x] **NMX-006 — Parámetros legales:** después de NMX-005, implementar vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes. Implementado y probado; falta publicación, revisión e integración (ver §3).
+**Pendientes actuales**
 
-**Resultado esperado para cerrar H0:** entorno reproducible, backend/frontend con herramientas de calidad, CI en verde, objetos monetarios probados y parámetros legales versionados por fecha.
+- [ ] **Proteger `main`:** exigir el check **CI / Lint y pruebas** antes de fusionar (configuración del dueño del repositorio).
+- [ ] **Limpieza de la etapa 0:** borrar del remoto las ramas integradas y retirar los worktrees de revisión de `tmp/` (detalle en §1).
+- [ ] **Validación legal:** enviar el cuestionario al contador y registrar sus respuestas en el catálogo (ver §5).
+- [ ] **H1:** empezar por NMX-010 (contratos del motor), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
+
+Cada PR se integra según [AGENTS.md](AGENTS.md): revisión técnica independiente cuando esté disponible, revisión del diff por el responsable y check **CI / Lint y pruebas** en verde en el commit exacto, sin aprobación formal de otra cuenta.
+
+**Histórico de H0 (cerrado el 9 de octubre de 2026)**
+
+- [x] **NMX-001 — Monorepo y Docker:** [PR #2](https://github.com/ba2sai/nomix/pull/2), integrado.
+- [x] **NMX-002 — Backend:** Pint, PHPStan/Larastan y Pest; `Domain` sin Laravel ni `float`. [PR #1](https://github.com/ba2sai/nomix/pull/1), revisado e integrado.
+- [x] **NMX-003 — Frontend:** Tailwind, shadcn/ui, TanStack Query, React Router, ESLint, Prettier y Vitest; sidebar, header y modos claro/oscuro. [PR #3](https://github.com/ba2sai/nomix/pull/3), revisado e integrado.
+- [x] **NMX-004 — CI:** lint, pruebas, typecheck y build en GitHub Actions con PostgreSQL real. [PR #5](https://github.com/ba2sai/nomix/pull/5), revisado e integrado; la protección de `main` sigue pendiente (arriba).
+- [x] **NMX-005 — Money y PayPeriod:** aritmética exacta, períodos y redondeo configurable, con pruebas de límites y mutación. [PR #4](https://github.com/ba2sai/nomix/pull/4), revisado e integrado.
+- [x] **NMX-006 — Parámetros legales:** vigencias, estados de verificación, rechazo de solapamientos y errores ante parámetros ausentes. [PR #7](https://github.com/ba2sai/nomix/pull/7), revisado e integrado.
+
+**Resultado de H0 (cumplido):** entorno reproducible, backend/frontend con herramientas de calidad, CI en verde, objetos monetarios probados y parámetros legales versionados por fecha.
 
 ## 5. Decisiones y pendientes que deben resolverse
 
-- [ ] Conseguir un contador o abogado laboral para validar el [catálogo legal](docs/nomix/04_catalogo_reglas_legales.md). Ninguna regla figura aún como `VALIDADO` en la documentación revisada.
+- [ ] Conseguir un contador o abogado laboral para validar el [catálogo legal](docs/nomix/04_catalogo_reglas_legales.md). El 9 de octubre de 2026 se preparó el cuestionario "Preguntas para el contador — Nomix" (documento compartido en claude.ai): 41 preguntas y 8 valores por confirmar, con la retención de ISR como prioridad. Ninguna regla figura aún como `VALIDADO` en la documentación revisada.
 - [ ] Priorizar retención de ISR, bases gravables, conversión de salario por hora, descuentos y redondeo. Las reglas pendientes deben seguir identificadas como tales.
 - [ ] Documentar reglas faltantes para salario quincenal, ingreso a mitad de período, ausencias y cambios salariales dentro de una quincena, con casos de prueba y fuentes.
 - [ ] Definir cómo conservar entradas históricas cifradas y presentar trazas según permisos sin guardar salario base en claro.
@@ -299,7 +313,7 @@ Informe: `tmp/verificacion-2026-10-08.md`. Commit verificado: `3fd649e` (`nmx-00
 - [ ] Definir cuenta AWS, región y dominio antes de la preparación de producción.
 - [ ] Preparar históricos y casos de comparación anonimizados para el piloto, fuera del repositorio. Las pruebas del código utilizan datos ficticios.
 
-Estas decisiones pueden gestionarse mientras se construye H0; sus bloqueos deben resolverse antes de implementar o habilitar los comportamientos afectados.
+Estas decisiones pueden gestionarse mientras avanzan H1 y H2; sus bloqueos deben resolverse antes de implementar o habilitar los comportamientos afectados.
 
 ## 6. Ruta hasta el MVP
 
