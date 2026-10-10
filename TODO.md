@@ -51,7 +51,7 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8).
 - Implementó: Claude. Revisión técnica: Codex.
 
-**NMX-011 (H1) implementado, revisado y probado localmente; pendiente de publicación, CI e integración.**
+**NMX-011 (H1) implementado, revisado y publicado ([PR #10](https://github.com/ba2sai/nomix/pull/10)); pendiente de CI e integración, después de los PR #8 y #9.**
 
 - Rama: `nmx-011-cuotas-css-se-rp`, encadenada sobre `nmx-010-contratos-motor` (PR #9).
 - Implementó: Claude. Revisión técnica y corrección de privacidad: Codex.
@@ -391,12 +391,12 @@ Segundo ticket de H1: RULE-001, 002, 005, 006 y 007. Lo implementó Claude; la r
 - [x] Mejora de cobertura legal: las seis fronteras de RULE-002, incluido 500.00 → 76.25 desde el 1 de marzo de 2029, derivadas de las vigencias del catálogo.
 - [x] Aislamiento en dominio: cálculos intercalados A/B/A con tasas RP distintas mantienen cada tasa y resultado. No hay persistencia, rutas ni migraciones nuevas; RLS y carga por empresa se verifican en la futura integración.
 - [x] Segundo agente de Codex revisó la corrección y retiró el bloqueo; sin hallazgos bloqueantes pendientes. La cobertura independiente de `PARCIAL` para RP con redondeo `VALIDADO` ya estaba en las pruebas unitarias.
-- [x] Verificación completa posterior a la corrección: `nomix.ps1 lint` y `nomix.ps1 test` con código 0. Pest: 425 pruebas, 1.019 aserciones y 1 `todo`; mutación: 474/474 detectados (100%); cobertura de `app/Domain`: 100%; comprobaciones de RLS, Horizon, frontend e integración en verde.
+- [x] Corrección y pruebas adicionales guardadas en `b0733e0`. Verificación completa: `nomix.ps1 lint` y `nomix.ps1 test` con código 0. Pest: 425 pruebas, 1.019 aserciones y 1 `todo`; mutación: 474/474 detectados (100%); cobertura de `app/Domain`: 100%; comprobaciones de RLS, Horizon, frontend e integración en verde.
 - [ ] CI del commit final de la corrección.
 
 **Publicación, revisión e integración**
 
-- [ ] Push y PR contra `nmx-010-contratos-motor`; se reorienta a `main` cuando se integre el PR #9.
+- [x] Push y [PR #10](https://github.com/ba2sai/nomix/pull/10) contra `nmx-010-contratos-motor`; se reorienta a `main` cuando se integre el PR #9. El PR registra criterios de aceptación, revisión independiente, hallazgo resuelto y pendientes legales.
 - [x] Revisión técnica independiente y resolución de hallazgos bloqueantes.
 - [ ] CI en verde e integración por el responsable.
 
@@ -408,7 +408,7 @@ Segundo ticket de H1: RULE-001, 002, 005, 006 y 007. Lo implementó Claude; la r
 - [ ] **Limpieza de la etapa 0:** borrar del remoto las ramas integradas y retirar los worktrees de revisión de `tmp/` (detalle en §1).
 - [ ] **Validación legal:** enviar el cuestionario al contador y registrar sus respuestas en el catálogo (ver §5).
 - [ ] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Hallazgos R1 a R3 de Codex corregidos y CI en verde; falta integrar el PR #9, después del #8 (ver §3).
-- [ ] **NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales:** implementado, revisado y probado; faltan publicación, CI e integración (ver §3).
+- [ ] **NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales:** implementado, revisado y publicado en el PR #10; faltan CI e integración (ver §3).
 - [ ] **H1, etapa 2 (resto):** NMX-012 (tarifa de ISR) y NMX-014 (horas extra), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 Cada PR se integra según [AGENTS.md](AGENTS.md): revisión técnica independiente cuando esté disponible, revisión del diff por el responsable y check **CI / Lint y pruebas** en verde en el commit exacto, sin aprobación formal de otra cuenta.
