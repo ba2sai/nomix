@@ -46,10 +46,15 @@ Este documento resume el avance y ordena los siguientes pasos. Los criterios com
 - Rama: `nmx-006-parametros-legales`, encadenada sobre `nmx-004-ci`.
 - Implementó: Claude. Revisa: Codex.
 
-**NMX-010 (H1) implementado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)). La revisión de Codex pidió tres cambios (R1 a R3), ya corregidos; pendiente del CI del nuevo commit y de la integración.**
+**NMX-010 (H1) implementado y publicado ([PR #9](https://github.com/ba2sai/nomix/pull/9)). La revisión de Codex pidió tres cambios (R1 a R3), ya corregidos, con el CI en verde sobre `7354f75`; pendiente de integración, después del PR #8.**
 
 - Rama: `nmx-010-contratos-motor`, encadenada sobre `docs-flujo-desarrollador-unico` (PR #8).
 - Implementó: Claude. Revisión técnica: Codex.
+
+**NMX-011 (H1) implementado y probado; pendiente de publicación, revisión técnica e integración.**
+
+- Rama: `nmx-011-cuotas-css-se-rp`, encadenada sobre `nmx-010-contratos-motor` (PR #9).
+- Implementó: Claude. Revisión técnica: Codex, si está disponible.
 
 ## 2. Trabajo realizado
 
@@ -328,7 +333,8 @@ Primer ticket de H1. Lo implementó Claude; la revisión técnica es de Codex si
 - [x] Push y [PR #9](https://github.com/ba2sai/nomix/pull/9) contra `docs-flujo-desarrollador-unico`; se reorienta a `main` cuando se integre el PR #8. CI #9 en verde en 2 min 25 s sobre `928e641`, con el paso nuevo de cobertura.
 - [x] Revisión técnica de Codex sobre `e230684` (`tmp/revision-pr-9.md`): requiere cambios, con 3 hallazgos (R1 a R3). La suite existente pasaba; las pruebas independientes del revisor fallaban en 3 de 11 casos.
 - [x] Hallazgos corregidos (ver "Ronda de revisión 1").
-- [ ] Push de las correcciones, CI en verde en el commit nuevo e integración por el responsable, después del PR #8.
+- [x] Push de las correcciones: [CI #12](https://github.com/ba2sai/nomix/actions/runs/38061280033) en verde sobre `7354f75` (3 min 8 s). El PR #8 también, con el [CI #11](https://github.com/ba2sai/nomix/actions/runs/38061277726) en verde sobre `a8bbc2d`.
+- [ ] Integración por el responsable, después del PR #8.
 
 **Ronda de revisión 1 (Codex)**
 
@@ -343,6 +349,44 @@ Además:
 - Las 11 pruebas independientes de Codex quedan como regresión en `tests/Legal/PayrollContractsTest.php`. La de R3 se adaptó a la corrección elegida: espera el rechazo en vez de un resultado.
 - `composer mutate` desactiva el límite de 300 s de Composer. En el entorno de Codex la mutación superó ese límite y cortó el primer `make test`, aunque en el CI pasaba.
 
+### NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales (10 de octubre de 2026)
+
+Segundo ticket de H1: RULE-001, 002, 005, 006 y 007. Lo implementó Claude; la revisión técnica es de Codex si está disponible.
+
+**Pruebas legales primero (AGENTS.md, flujo 6)**
+
+- [x] Sin otro agente disponible, los casos se derivaron directamente del catálogo (`04` §1) y se publicaron en un commit propio, `e21e921`, antes de escribir las reglas. Fallaban porque las clases no existían.
+- [x] `tests/Legal/SocialSecurityContributionsTest.php`: RULE-001 (500.00 → 48.75; 1,234.56 → 120.3696 → 120.37), RULE-002 (500.00 → 66.25 en octubre de 2026, 71.25 en marzo de 2027 y 61.25 en marzo de 2025), RULE-005 (500.00 → 6.25), RULE-006 (500.00 → 7.50) y RULE-007 (500.00 con tasa 2.10% → 10.50). Además, ninguna cuota habilita producción mientras el catálogo no esté `VALIDADO`.
+- [x] Recalculados a mano: 500 × 0.0975 = 48.75; 1,234.56 × 0.0975 = 120.3696; 500 × 0.1325 = 66.25; 500 × 0.1425 = 71.25; 500 × 0.1225 = 61.25; 500 × 0.0125 = 6.25; 500 × 0.015 = 7.50; 500 × 0.021 = 10.50.
+- [ ] RULE-005 sobre el XIII mes (500.00 → 0.00) queda como `todo`: el XIII se calcula en NMX-050.
+
+**Implementación**
+
+- [x] `App\Domain\Payroll\Rules`: `CssEmployeeRule` (RULE-001), `CssEmployerRule` (RULE-002), `EducationInsuranceEmployeeRule` (RULE-005), `EducationInsuranceEmployerRule` (RULE-006) y `OccupationalRiskRule` (RULE-007). Cada una devuelve un `LineItem` con su traza; comparten `RateContribution` (base gravable × tasa, redondeada con RULE-080).
+- [x] La tasa sale de `parametros_legales`, salvo la de Riesgos Profesionales, que es de la empresa (`EmployerSnapshot`).
+- [x] La base gravable debe ser cero o positiva y tener 2 decimales como máximo; el error no muestra el monto.
+- [x] RULE-007 es `PARCIAL`: su traza incluye el rango de referencia (`RIESGO_PROFESIONAL_TASA_MINIMA` y `_MAXIMA`), así que no habilita producción. `warnings()` avisa, sin bloquear, si la tasa de la empresa queda fuera del rango.
+- [x] Documentación: `08` (sección "Motor de nómina: cuotas de CSS, SE y Riesgos Profesionales").
+
+**Pruebas**
+
+- [x] `.\nomix.ps1 lint` y `.\nomix.ps1 test` con código de salida 0.
+- [x] Pest: 413 pruebas y 956 aserciones, más 1 `todo` (RULE-005 sobre el XIII mes).
+- [x] Mutación: 473 de 473 mutantes detectados (100%).
+- [x] Cobertura de `app/Domain`: 100%, incluidas las 6 clases de `Payroll/Rules`.
+- [x] PHPStan nivel 8 y `max` en `Domain`, y Pint: sin errores.
+
+**Decisiones a validar**
+
+- [ ] **La base gravable entra ya armada.** Qué conceptos la forman sigue pendiente en RULE-001 (pregunta 2 del cuestionario al contador). Lo resolverá el calculador (NMX-016) sin inventar la composición.
+- [ ] **El "mes de cuota" de RULE-002** lo fija quien carga los `LegalParameters` (NMX-016). Las reglas usan la tasa vigente en esa fecha.
+- [ ] **Rango de referencia de RULE-007 como aviso, no como error.** El catálogo lo da como aproximado; rechazar una tasa fuera de él sería inventar una restricción.
+
+**Publicación, revisión e integración**
+
+- [ ] Push y PR contra `nmx-010-contratos-motor`; se reorienta a `main` cuando se integre el PR #9.
+- [ ] Revisión técnica, CI en verde e integración por el responsable.
+
 ## 4. Siguientes pasos inmediatos
 
 **Pendientes actuales**
@@ -350,8 +394,9 @@ Además:
 - [ ] **Proteger `main`:** exigir el check **CI / Lint y pruebas** antes de fusionar (configuración del dueño del repositorio).
 - [ ] **Limpieza de la etapa 0:** borrar del remoto las ramas integradas y retirar los worktrees de revisión de `tmp/` (detalle en §1).
 - [ ] **Validación legal:** enviar el cuestionario al contador y registrar sus respuestas en el catálogo (ver §5).
-- [ ] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Hallazgos R1 a R3 de Codex corregidos; falta el CI del nuevo commit y la integración del PR #9, después del #8 (ver §3).
-- [ ] **H1, etapa 2:** NMX-011 (CSS, SE y Riesgos Profesionales), NMX-012 (tarifa de ISR) y NMX-014 (horas extra), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
+- [ ] **NMX-010 — Contratos del motor (H1):** `RuleTrace`, `LineItem`, `PayrollInput` y `PayrollResult`, con redondeo desde `parametros_legales` y cobertura del dominio al 100%. Hallazgos R1 a R3 de Codex corregidos y CI en verde; falta integrar el PR #9, después del #8 (ver §3).
+- [ ] **NMX-011 — Cuotas de CSS, SE y Riesgos Profesionales:** implementado y probado; faltan publicación, revisión e integración (ver §3).
+- [ ] **H1, etapa 2 (resto):** NMX-012 (tarifa de ISR) y NMX-014 (horas extra), según el [backlog](docs/nomix/07_alcance_mvp_y_backlog.md).
 
 Cada PR se integra según [AGENTS.md](AGENTS.md): revisión técnica independiente cuando esté disponible, revisión del diff por el responsable y check **CI / Lint y pruebas** en verde en el commit exacto, sin aprobación formal de otra cuenta.
 

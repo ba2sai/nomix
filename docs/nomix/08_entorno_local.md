@@ -129,6 +129,23 @@ Los tipos que comparten todas las reglas de H1. No calculan nada todavía: fijan
 
 **Cobertura:** `composer coverage` (incluido en `make test` y en el CI) mide la suite `Unit` solo sobre `app/Domain` con `phpunit.domain.xml` y exige 100% de líneas, el criterio común de H1.
 
+## Motor de nómina: cuotas de CSS, SE y Riesgos Profesionales (NMX-011)
+
+Una clase por regla en `App\Domain\Payroll\Rules`. Cada una devuelve un `LineItem` con su traza: base gravable × tasa, redondeada según RULE-080.
+
+| Regla | Clase | Concepto | Tasa |
+|---|---|---|---|
+| RULE-001 | `CssEmployeeRule` | `css_obrero` | `CSS_OBRERO_SALARIO` |
+| RULE-002 | `CssEmployerRule` | `css_patronal` | `CSS_PATRONAL_SALARIO`, vigente en la fecha de los `LegalParameters` |
+| RULE-005 | `EducationInsuranceEmployeeRule` | `se_obrero` | `SE_OBRERO_SALARIO` |
+| RULE-006 | `EducationInsuranceEmployerRule` | `se_patronal` | `SE_PATRONAL_SALARIO` |
+| RULE-007 | `OccupationalRiskRule` | `riesgo_profesional` | La de la empresa (`EmployerSnapshot`) |
+
+- **La base gravable entra ya armada.** Qué conceptos la forman sigue pendiente en RULE-001; lo decide el calculador (NMX-016). Debe ser cero o positiva y tener 2 decimales como máximo; el error no muestra el monto.
+- **El "mes de cuota" de RULE-002** lo fija quien carga los `LegalParameters`: la regla usa la tasa vigente en esa fecha.
+- **RULE-007 (`PARCIAL`):** la traza incluye el rango de referencia del catálogo (`RIESGO_PROFESIONAL_TASA_MINIMA` y `_MAXIMA`), así que la línea hereda su estado y no habilita producción. `warnings()` avisa, sin bloquear, si la tasa de la empresa queda fuera de ese rango.
+- **RULE-005 no se aplica al XIII mes:** el cálculo del XIII (NMX-050) no usa esta regla. El caso del catálogo queda como `todo` en `tests/Legal/SocialSecurityContributionsTest.php`.
+
 ## Frontend (NMX-003)
 
 **Stack:** React 19, React Router 8, TanStack Query 5, Tailwind CSS 4 (plugin de Vite, sin `tailwind.config`) y componentes shadcn/ui copiados en `src/components/ui` (`components.json` permite agregar más con `npx shadcn add`). React 19 es una decisión aprobada del stack (D-13 en `00_decisiones_stack_nomix.md`).

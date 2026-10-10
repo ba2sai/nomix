@@ -59,6 +59,12 @@ final class PayrollException extends DomainException
         return new self("El campo '{$field}' tiene el monto {$amount}, que no cabe en 2 decimales.");
     }
 
+    /** Sin el monto: la base suele ser el salario del período (AGENTS.md, regla 7). */
+    public static function invalidTaxableBase(string $ruleId): self
+    {
+        return new self("La base gravable de {$ruleId} debe ser cero o positiva y tener 2 decimales como máximo.");
+    }
+
     public static function terminationBeforeHire(): self
     {
         return new self('La fecha de terminación es anterior a la de ingreso.');
