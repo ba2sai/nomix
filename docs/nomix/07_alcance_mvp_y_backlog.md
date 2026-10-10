@@ -113,7 +113,7 @@ En tickets legales, prepara los casos desde el catálogo antes de implementar la
 
 ### H1 — Motor legal
 
-> Cada ticket incluye las pruebas de `backend/tests/Legal/` con los casos del catálogo, escritas por el revisor. Si una regla está `PENDIENTE`, se implementa como parámetro y se marca en la traza.
+> Cada ticket incluye las pruebas de `backend/tests/Legal/` con los casos del catálogo, preparadas antes de implementar la regla, como indica el inicio de la sección 3 y `AGENTS.md`: las escribe el agente revisor sin inspeccionar la implementación cuando está disponible; si no, el responsable las deriva directamente del catálogo. Si una regla está `PENDIENTE`, se implementa como parámetro y se marca en la traza.
 
 | Ticket | Regla(s) | Descripción | Impl. | Rev. y pruebas |
 |---|---|---|---|---|
