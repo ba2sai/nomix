@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "ClaudeInChromeDomain(github.com)",
+      "ClaudeInChromeDomain(localhost:5173)",
+      "mcp__claude-in-chrome__tabs_context_mcp"
+    ]
+  }
+}
