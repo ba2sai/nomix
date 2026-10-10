@@ -10,17 +10,20 @@ use App\Domain\Shared\Period\CalendarDate;
 use App\Domain\Shared\Period\PayFrequency;
 use DateTimeImmutable;
 use DateTimeInterface;
+use JsonSerializable;
 
 /**
  * Datos del colaborador que el motor necesita, tal como regían en el período
  * (docs/nomix/06: `colaboradores` e `historial_salarial`). No lleva identificadores
  * personales: el motor no los usa.
  *
- * El salario base es sensible (AGENTS.md, regla 7): vive en memoria durante el cálculo y
- * las reglas lo registran como entrada sensible de la traza. El perfil de ISR (RULE-011)
- * y los descuentos a terceros (RULE-070) se agregan en NMX-013 y NMX-015.
+ * El salario base es sensible (AGENTS.md, regla 7): vive en memoria durante el cálculo,
+ * las reglas lo registran como entrada sensible de la traza y no sale en claro ni en los
+ * mensajes de error ni al serializar el snapshot (json_encode, logs de Monolog, print_r,
+ * var_dump). El perfil de ISR (RULE-011) y los descuentos a terceros (RULE-070) se
+ * agregan en NMX-013 y NMX-015.
  */
-final readonly class EmployeeSnapshot
+final readonly class EmployeeSnapshot implements JsonSerializable
 {
     public string $weeklyHours;
 
@@ -47,7 +50,7 @@ final readonly class EmployeeSnapshot
         }
 
         if (! $baseSalary->fitsScale(2)) {
-            throw PayrollException::amountNotRounded('salario_base', $baseSalary->toDecimalString());
+            throw PayrollException::salaryNotRounded();
         }
 
         if ($representationExpenses !== null && ($representationExpenses->isNegative() || ! $representationExpenses->fitsScale(2))) {
@@ -62,5 +65,33 @@ final readonly class EmployeeSnapshot
         if ($this->terminationDate !== null && $this->terminationDate < $this->hireDate) {
             throw PayrollException::terminationBeforeHire();
         }
+    }
+
+    /**
+     * Forma para registros y depuración. El salario base sale sin valor, como una entrada
+     * sensible de la traza; los gastos de representación no son un campo cifrado (06).
+     *
+     * @return array{salario_base: null, salario_base_sensible: true, periodicidad: string, horas_semanales: string, jornada: string, fecha_ingreso: string, fecha_terminacion: string|null, gastos_representacion: string|null}
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'salario_base' => null,
+            'salario_base_sensible' => true,
+            'periodicidad' => $this->payFrequency->value,
+            'horas_semanales' => $this->weeklyHours,
+            'jornada' => $this->workShift->value,
+            'fecha_ingreso' => $this->hireDate->format('Y-m-d'),
+            'fecha_terminacion' => $this->terminationDate?->format('Y-m-d'),
+            'gastos_representacion' => $this->representationExpenses?->toString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return $this->jsonSerialize();
     }
 }

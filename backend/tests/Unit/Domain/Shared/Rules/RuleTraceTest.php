@@ -100,6 +100,38 @@ describe('estado de verificación', function (): void {
             ->and($roundingPending->pendingParameterCodes())->toBe([]);
     });
 
+    it('acepta el mismo parámetro repetido aunque llegue en otra instancia', function (): void {
+        $trace = RuleTrace::calculated('RULE-001', 'f', [
+            TraceInput::parameter(Parameters::make('CSS_OBRERO_SALARIO')),
+            TraceInput::parameter(Parameters::make('CSS_OBRERO_SALARIO')),
+        ], Money::of('1'), Parameters::rounding());
+
+        expect(array_map(static fn ($parameter): string => $parameter->code, $trace->parameters()))
+            ->toBe(['CSS_OBRERO_SALARIO', 'REDONDEO_POLITICA']);
+    });
+
+    it('rechaza dos versiones del mismo parámetro, en cualquier orden, para que ninguna se oculte', function (VerificationStatus $first, VerificationStatus $second): void {
+        $inputs = [
+            TraceInput::parameter(Parameters::make('CSS_OBRERO_SALARIO', status: $first)),
+            TraceInput::parameter(Parameters::make('CSS_OBRERO_SALARIO', status: $second)),
+        ];
+
+        expect(fn () => RuleTrace::calculated('RULE-001', 'f', $inputs, Money::of('1'), Parameters::rounding(status: VerificationStatus::Validado)))
+            ->toThrow(RuleTraceException::class, "La traza recibe dos versiones distintas del parámetro 'CSS_OBRERO_SALARIO' (valor, vigencia o estado)")
+            ->and(fn () => RuleTrace::entered('Bono', $inputs, Money::of('1')))
+            ->toThrow(RuleTraceException::class, "'CSS_OBRERO_SALARIO'");
+    })->with([
+        'PENDIENTE y luego VALIDADO' => [VerificationStatus::Pendiente, VerificationStatus::Validado],
+        'VALIDADO y luego PENDIENTE' => [VerificationStatus::Validado, VerificationStatus::Pendiente],
+    ]);
+
+    it('rechaza una entrada de redondeo distinta de la política que se aplicó', function (): void {
+        $pendingRounding = Parameters::rounding(status: VerificationStatus::Pendiente)->parameter;
+
+        expect(fn () => RuleTrace::calculated('RULE-001', 'f', [TraceInput::parameter($pendingRounding)], Money::of('1'), Parameters::rounding(status: VerificationStatus::Validado)))
+            ->toThrow(RuleTraceException::class, "'REDONDEO_POLITICA'");
+    });
+
     it('un monto ingresado sin parámetros no bloquea producción', function (): void {
         $trace = RuleTrace::entered('Bono', [], Money::of('1'));
 
@@ -127,6 +159,15 @@ describe('serialización', function (): void {
             'redondeo' => ['regla' => 'RULE-080', 'escala' => 2, 'modo' => 'HALF_UP'],
             'parametros_pendientes' => ['REDONDEO_POLITICA'],
         ]);
+    });
+
+    it('json_encode y print_r usan la misma forma, sin la entrada sensible', function (): void {
+        $trace = RuleTrace::calculated('RULE-001', 'bruto × tasa', [
+            TraceInput::money('salario_base', Money::of('4321.67'), sensitive: true),
+        ], Money::of('120.3696'), Parameters::rounding());
+
+        expect(json_encode($trace, JSON_THROW_ON_ERROR))->toBe(json_encode($trace->toArray(), JSON_THROW_ON_ERROR))
+            ->and(print_r($trace, true))->toContain('salario_base')->toContain('bruto × tasa')->not->toContain('4321.67');
     });
 
     it('un monto ingresado no lleva redondeo', function (): void {

@@ -38,6 +38,12 @@ final class PayrollException extends DomainException
         return new self('El salario base debe ser mayor que cero.');
     }
 
+    /** Sin el monto: el salario base es sensible y un mensaje puede acabar en un log (AGENTS.md, regla 7). */
+    public static function salaryNotRounded(): self
+    {
+        return new self('El salario base debe tener 2 decimales como máximo.');
+    }
+
     public static function invalidDecimal(string $field, string $value): self
     {
         return new self("El campo '{$field}' tiene el valor '{$value}', que no es un decimal válido.");

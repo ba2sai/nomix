@@ -105,13 +105,15 @@ Los tipos que comparten todas las reglas de H1. No calculan nada todavía: fijan
 
 - `RuleTrace::calculated(ruleId, fórmula, entradas, resultadoSinRedondear, RoundingRule)`: un cálculo legal. Siempre cita su `RULE-xxx` y redondea con RULE-080. Guarda el resultado antes y después de redondear.
 - `RuleTrace::entered(descripción, entradas, monto)`: un monto que no sale de una regla, como un bono registrado como novedad. No cita regla ni redondea, y exige 2 decimales como máximo.
-- `TraceInput`: entradas de tipo monto, cantidad o parámetro legal (con su regla, estado y vigencia). **Una entrada sensible (el salario base) sale de `toArray()` sin valor** (AGENTS.md, regla 7).
+- `TraceInput`: entradas de tipo monto, cantidad o parámetro legal (con su regla, estado y vigencia). **Una entrada sensible (el salario base) sale sin valor** (AGENTS.md, regla 7), tanto con `toArray()` como con `json_encode()` (y con él los logs de Monolog), `print_r()` y `var_dump()`. `RuleTrace` sigue la misma regla.
+- Un mismo código de parámetro solo puede repetirse en una traza si es el mismo parámetro. Dos versiones distintas (otro valor, vigencia o estado) se rechazan, para que una `PENDIENTE` no quede oculta tras una `VALIDADO`.
 - `RoundingRule::from(LegalParameters)`: la política de RULE-080 construida desde `REDONDEO_POLITICA`. Conserva el parámetro, así que **toda traza que redondea queda marcada como pendiente mientras RULE-080 siga `PENDIENTE`**.
 - `pendingParameterCodes()` y `allowsProduction()` dicen qué parámetros siguen `PENDIENTE` y si todos están `VALIDADO`.
 
 **Entrada (`App\Domain\Payroll\Input`):** `PayrollInput` reúne `PayPeriod`, fecha de pago, `EmployeeSnapshot` (salario base mensual, periodicidad, horas semanales, jornada, ingreso, terminación y gastos de representación), `EmployerSnapshot` (tasa de Riesgos Profesionales) y `Novelty` (novedades de tiempo con cantidad o de dinero con monto).
 
 - La periodicidad del colaborador debe coincidir con la del período.
+- `EmployeeSnapshot` no muestra el salario base en sus errores de validación ni al serializarse (`json_encode()`, `print_r()`, `var_dump()`).
 - El período y la fecha de pago van por separado porque el "mes de cuota" de RULE-002 está pendiente de confirmar.
 - El perfil de ISR y los descuentos a terceros se agregan en NMX-013 y NMX-015.
 

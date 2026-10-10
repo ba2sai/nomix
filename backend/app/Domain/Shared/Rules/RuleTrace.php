@@ -7,6 +7,7 @@ namespace App\Domain\Shared\Rules;
 use App\Domain\Shared\Legal\LegalParameter;
 use App\Domain\Shared\Legal\VerificationStatus;
 use App\Domain\Shared\Money\Money;
+use JsonSerializable;
 
 /**
  * Traza de un cálculo (docs/nomix/05 §2.2): regla, fórmula legible, entradas, resultado
@@ -15,10 +16,16 @@ use App\Domain\Shared\Money\Money;
  *
  * - calculated(): un cálculo legal; siempre cita su RULE-xxx y redondea según RULE-080.
  * - entered(): un monto que no sale de una regla (p. ej. un bono registrado como novedad).
+ *
+ * json_encode(), print_r() y var_dump() usan la misma forma que toArray(), así que las
+ * entradas sensibles nunca salen en claro.
  */
-final readonly class RuleTrace
+final readonly class RuleTrace implements JsonSerializable
 {
     private const string RULE_ID_PATTERN = '/^RULE-\d{3}$/';
+
+    /** @var list<LegalParameter> */
+    private array $parameters;
 
     /**
      * @param  list<TraceInput>  $inputs
@@ -30,7 +37,9 @@ final readonly class RuleTrace
         public Money $unroundedResult,
         public Money $result,
         public ?RoundingRule $rounding,
-    ) {}
+    ) {
+        $this->parameters = self::distinctParameters($inputs, $rounding);
+    }
 
     /**
      * @param  list<TraceInput>  $inputs
@@ -71,19 +80,7 @@ final readonly class RuleTrace
      */
     public function parameters(): array
     {
-        $parameters = [];
-
-        foreach ($this->inputs as $input) {
-            if ($input->parameter !== null) {
-                $parameters[$input->parameter->code] = $input->parameter;
-            }
-        }
-
-        if ($this->rounding !== null) {
-            $parameters[$this->rounding->parameter->code] = $this->rounding->parameter;
-        }
-
-        return array_values($parameters);
+        return $this->parameters;
     }
 
     /**
@@ -138,6 +135,59 @@ final readonly class RuleTrace
             ],
             'parametros_pendientes' => $this->pendingParameterCodes(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return $this->toArray();
+    }
+
+    /**
+     * Un código solo puede aparecer repetido si es el mismo parámetro. Dos versiones
+     * distintas (p. ej. una PENDIENTE y otra VALIDADO) se rechazan: quedarse con una
+     * ocultaría la otra de pendingParameterCodes() y allowsProduction().
+     *
+     * @param  list<TraceInput>  $inputs
+     * @return list<LegalParameter>
+     */
+    private static function distinctParameters(array $inputs, ?RoundingRule $rounding): array
+    {
+        $used = [];
+
+        foreach ($inputs as $input) {
+            if ($input->parameter !== null) {
+                $used[] = $input->parameter;
+            }
+        }
+
+        if ($rounding !== null) {
+            $used[] = $rounding->parameter;
+        }
+
+        $parameters = [];
+
+        foreach ($used as $parameter) {
+            $known = $parameters[$parameter->code] ?? null;
+
+            if ($known !== null && ! $known->equals($parameter)) {
+                throw RuleTraceException::conflictingParameter($parameter->code);
+            }
+
+            $parameters[$parameter->code] = $parameter;
+        }
+
+        return array_values($parameters);
     }
 
     private static function checkFormula(string $formula): string

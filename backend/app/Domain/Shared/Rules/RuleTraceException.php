@@ -33,6 +33,11 @@ final class RuleTraceException extends DomainException
         return new self("El monto ingresado {$amount} tiene más de 2 decimales.");
     }
 
+    public static function conflictingParameter(string $code): self
+    {
+        return new self("La traza recibe dos versiones distintas del parámetro '{$code}' (valor, vigencia o estado): todos los parámetros de un cálculo deben salir de la misma consulta por fecha.");
+    }
+
     public static function invalidRoundingTable(string $reason): self
     {
         return new self('La política de redondeo de parametros_legales (REDONDEO_POLITICA, RULE-080) no es válida: '.$reason.'.');

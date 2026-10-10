@@ -155,3 +155,34 @@ describe('acceso al contenido', function (): void {
             ->toThrow(LegalParameterException::class, "El parámetro legal 'CSS_PATRONAL_SALARIO' es un valor simple; usa value() en lugar de table().");
     });
 });
+
+describe('igualdad', function (): void {
+    it('dos instancias con los mismos datos son el mismo parámetro', function (): void {
+        $sameDayInPanama = legalParameter(from: '2025-04-01 22:00:00 America/Panama', until: '2027-02-28 08:00:00 America/Panama');
+
+        expect(legalParameter()->equals(legalParameter()))->toBeTrue()
+            ->and(legalParameter()->equals($sameDayInPanama))->toBeTrue();
+    });
+
+    it('cualquier dato distinto es otro parámetro', function (array $change): void {
+        expect(legalParameter()->equals(legalParameter(...$change)))->toBeFalse()
+            ->and(legalParameter(...$change)->equals(legalParameter()))->toBeFalse();
+    })->with([
+        'código' => [['code' => 'CSS_OBRERO_SALARIO']],
+        'regla' => [['ruleId' => 'RULE-001']],
+        'valor' => [['value' => '0.142500']],
+        'inicio' => [['from' => '2025-04-02']],
+        'inicio abierto' => [['from' => null]],
+        'fin' => [['until' => '2027-03-01']],
+        'fin abierto' => [['until' => null]],
+        'estado' => [['status' => VerificationStatus::Validado]],
+        'fuente' => [['source' => 'Otra fuente']],
+    ]);
+
+    it('compara las tablas completas', function (): void {
+        $table = legalParameter(value: null, table: ['tramos' => ['0.15']]);
+
+        expect($table->equals(legalParameter(value: null, table: ['tramos' => ['0.15']])))->toBeTrue()
+            ->and($table->equals(legalParameter(value: null, table: ['tramos' => ['0.25']])))->toBeFalse();
+    });
+});

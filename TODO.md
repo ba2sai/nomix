@@ -326,7 +326,22 @@ Primer ticket de H1. Lo implementó Claude; la revisión técnica es de Codex si
 **Publicación, revisión e integración**
 
 - [x] Push y [PR #9](https://github.com/ba2sai/nomix/pull/9) contra `docs-flujo-desarrollador-unico`; se reorienta a `main` cuando se integre el PR #8. CI #9 en verde en 2 min 25 s sobre `928e641`, con el paso nuevo de cobertura.
-- [ ] Revisión técnica, CI en verde e integración por el responsable.
+- [x] Revisión técnica de Codex sobre `e230684` (`tmp/revision-pr-9.md`): requiere cambios, con 3 hallazgos (R1 a R3). La suite existente pasaba; las pruebas independientes del revisor fallaban en 3 de 11 casos.
+- [x] Hallazgos corregidos (ver "Ronda de revisión 1").
+- [ ] Push de las correcciones, CI en verde en el commit nuevo e integración por el responsable, después del PR #8.
+
+**Ronda de revisión 1 (Codex)**
+
+| Hallazgo | Resolución |
+|---|---|
+| R1 · P1: el error de validación de `EmployeeSnapshot` incluía el salario base (p. ej. `4321.675`), que podía acabar en un log | Nuevo `PayrollException::salaryNotRounded()`, sin el monto. La prueba que exigía el importe en el mensaje ahora comprueba que no aparece ni en el mensaje ni en la pila de llamadas. |
+| R2 · P2: `json_encode(TraceInput)` sacaba el valor de una entrada sensible, porque `value` es público y solo `toArray()` lo ocultaba | `TraceInput` y `RuleTrace` implementan `JsonSerializable` y `__debugInfo()` con la forma de `toArray()`. Revisando los snapshots apareció el mismo problema en `EmployeeSnapshot`: `Money` es `JsonSerializable`, así que el salario salía en claro. Ahora también se serializa sin él. Pruebas con `json_encode`, `print_r` y `var_dump` de `TraceInput`, `RuleTrace`, `EmployeeSnapshot` y `PayrollInput`. |
+| R3 · P2: al deduplicar por código, una versión `VALIDADO` ocultaba otra `PENDIENTE` del mismo parámetro, y la traza permitía producción | `RuleTrace` rechaza dos versiones distintas del mismo código (`RuleTraceException::conflictingParameter`), en cualquier orden y también contra el parámetro de redondeo. El mismo parámetro repetido se sigue aceptando: `LegalParameter::equals()` compara código, regla, valor o tabla, vigencia, estado y fuente. |
+
+Además:
+
+- Las 11 pruebas independientes de Codex quedan como regresión en `tests/Legal/PayrollContractsTest.php`. La de R3 se adaptó a la corrección elegida: espera el rechazo en vez de un resultado.
+- `composer mutate` desactiva el límite de 300 s de Composer. En el entorno de Codex la mutación superó ese límite y cortó el primer `make test`, aunque en el CI pasaba.
 
 ## 4. Siguientes pasos inmediatos
 

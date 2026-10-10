@@ -53,9 +53,17 @@ describe('colaborador', function (): void {
             ->toThrow(PayrollException::class, 'El salario base debe ser mayor que cero.');
     })->with(['0', '-100.00']);
 
-    it('exige un salario con 2 decimales como máximo', function (): void {
-        expect(fn () => new EmployeeSnapshot(Money::of('1500.005'), PayFrequency::Quincenal, '48', WorkShift::Diurna, new DateTimeImmutable('2024-01-15')))
-            ->toThrow(PayrollException::class, "El campo 'salario_base' tiene el monto 1500.005, que no cabe en 2 decimales.");
+    it('exige un salario con 2 decimales como máximo, sin mostrarlo en el error', function (): void {
+        try {
+            new EmployeeSnapshot(Money::of('1500.005'), PayFrequency::Quincenal, '48', WorkShift::Diurna, new DateTimeImmutable('2024-01-15'));
+        } catch (PayrollException $exception) {
+            expect($exception->getMessage())->toBe('El salario base debe tener 2 decimales como máximo.')
+                ->and($exception->getTraceAsString())->not->toContain('1500.005');
+
+            return;
+        }
+
+        throw new RuntimeException('El salario con 3 decimales debía rechazarse.');
     });
 
     it('acepta salario y gastos de representación con 2 decimales', function (): void {
@@ -87,6 +95,41 @@ describe('colaborador', function (): void {
         expect($sameDay->terminationDate?->format('Y-m-d'))->toBe('2024-01-15')
             ->and(fn () => new EmployeeSnapshot(Money::of('1500'), PayFrequency::Quincenal, '48', WorkShift::Diurna, new DateTimeImmutable('2024-01-15'), new DateTimeImmutable('2024-01-14')))
             ->toThrow(PayrollException::class, 'La fecha de terminación es anterior a la de ingreso.');
+    });
+
+    it('se serializa sin el salario base (AGENTS.md, regla 7)', function (): void {
+        $employee = new EmployeeSnapshot(
+            Money::of('4321.67'),
+            PayFrequency::Bisemanal,
+            '44.5',
+            WorkShift::Mixta,
+            new DateTimeImmutable('2024-01-15'),
+            new DateTimeImmutable('2026-12-31'),
+            Money::of('300.00'),
+        );
+
+        ob_start();
+        var_dump($employee);
+        $dump = (string) ob_get_clean();
+
+        expect($employee->jsonSerialize())->toBe([
+            'salario_base' => null,
+            'salario_base_sensible' => true,
+            'periodicidad' => 'bisemanal',
+            'horas_semanales' => '44.5',
+            'jornada' => 'mixta',
+            'fecha_ingreso' => '2024-01-15',
+            'fecha_terminacion' => '2026-12-31',
+            'gastos_representacion' => '300.00',
+        ])
+            ->and(json_encode($employee, JSON_THROW_ON_ERROR))->not->toContain('4321.67')
+            ->and(print_r($employee, true))->toContain('salario_base_sensible')->not->toContain('4321.67')
+            ->and($dump)->toContain('salario_base_sensible')->not->toContain('4321.67');
+    });
+
+    it('serializa como nulos la terminación y los gastos que no tiene', function (): void {
+        expect(fortnightlyEmployee()->jsonSerialize())
+            ->toMatchArray(['fecha_terminacion' => null, 'gastos_representacion' => null]);
     });
 });
 
@@ -120,6 +163,14 @@ describe('entrada del cálculo', function (): void {
             ->and($input->novelties())->toBe([$overtime, $bonus, $absence, $overtimeNight])
             ->and($input->noveltiesOf(NoveltyType::HoraExtra))->toBe([$overtime, $overtimeNight])
             ->and($input->noveltiesOf(NoveltyType::Incapacidad))->toBe([]);
+    });
+
+    it('tampoco expone el salario base al serializar la entrada completa', function (): void {
+        $employee = new EmployeeSnapshot(Money::of('4321.67'), PayFrequency::Quincenal, '48', WorkShift::Diurna, new DateTimeImmutable('2024-01-15'));
+        $input = new PayrollInput(PayPeriod::fortnight(2026, 10, 1), new DateTimeImmutable('2026-10-15'), $employee, new EmployerSnapshot('0.021000'));
+
+        expect(json_encode($input, JSON_THROW_ON_ERROR))->toContain('salario_base_sensible')->not->toContain('4321.67')
+            ->and(print_r($input, true))->toContain('salario_base_sensible')->not->toContain('4321.67');
     });
 
     it('admite no tener novedades', function (): void {

@@ -115,4 +115,16 @@ describe('serialización', function (): void {
             'parametro' => null,
         ]);
     });
+
+    it('tampoco lo entrega con json_encode, print_r ni var_dump', function (): void {
+        $input = TraceInput::money('salario_base', Money::of('4321.67'), sensitive: true);
+
+        ob_start();
+        var_dump($input);
+        $dump = (string) ob_get_clean();
+
+        expect(json_encode($input, JSON_THROW_ON_ERROR))->toBe(json_encode($input->toArray(), JSON_THROW_ON_ERROR))
+            ->and(print_r($input, true))->toContain('salario_base')->not->toContain('4321.67')
+            ->and($dump)->toContain('salario_base')->not->toContain('4321.67');
+    });
 });

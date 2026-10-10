@@ -6,15 +6,17 @@ namespace App\Domain\Shared\Rules;
 
 use App\Domain\Shared\Legal\LegalParameter;
 use App\Domain\Shared\Money\Money;
+use JsonSerializable;
 
 /**
  * Una entrada de una traza de cálculo: un monto, una cantidad (horas, días) o un
  * parámetro legal con su regla y su estado de verificación.
  *
  * Una entrada sensible (p. ej. el salario base) se usa en memoria pero nunca sale en
- * claro de la traza serializada (AGENTS.md, regla 7).
+ * claro (AGENTS.md, regla 7): toArray(), json_encode() (y con él los logs de Monolog),
+ * print_r() y var_dump() usan la misma forma, sin su valor.
  */
-final readonly class TraceInput
+final readonly class TraceInput implements JsonSerializable
 {
     private const string DECIMAL_PATTERN = '/^-?\d+(\.\d+)?$/';
 
@@ -68,6 +70,22 @@ final readonly class TraceInput
                 'vigente_hasta' => $this->parameter->validUntil?->format('Y-m-d'),
             ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return $this->toArray();
     }
 
     private static function checkName(string $name): string

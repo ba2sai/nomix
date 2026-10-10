@@ -111,4 +111,17 @@ final readonly class LegalParameter
     {
         return $this->table !== null;
     }
+
+    /** Mismo código, regla, valor o tabla, vigencia, estado y fuente. */
+    public function equals(self $other): bool
+    {
+        return $this->code === $other->code
+            && $this->ruleId === $other->ruleId
+            && $this->value === $other->value
+            && $this->table === $other->table
+            && $this->validFrom?->format('Y-m-d') === $other->validFrom?->format('Y-m-d')
+            && $this->validUntil?->format('Y-m-d') === $other->validUntil?->format('Y-m-d')
+            && $this->status === $other->status
+            && $this->source === $other->source;
+    }
 }
